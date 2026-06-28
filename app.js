@@ -183,6 +183,50 @@ function createHalo() {
   scene.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 0.15, vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.35, sizeAttenuation: true })));
 }
 
+
+
+// --- REALISTIC NEBULA (multi-color like real galaxy) ---
+let nebulaMesh = null;
+function makeNebula(count, arms, tight) {
+  const p = new Float32Array(count * 3), cl = new Float32Array(count * 3);
+  const spots = [
+    [0, 0.25, [1.0, 0.47, 0.67], 0.3, 1.0],
+    [1, 0.4, [1.0, 0.6, 0.27], 0.35, 0.8],
+    [2, 0.5, [0.67, 0.4, 1.0], 0.4, 1.2],
+    [3, 0.6, [0.4, 0.73, 1.0], 0.35, 0.9],
+    [0, 0.7, [1.0, 0.33, 0.6], 0.3, 0.7],
+    [2, 0.35, [1.0, 0.53, 0.33], 0.25, 1.1],
+    [1, 0.65, [0.27, 0.87, 1.0], 0.3, 1.0],
+    [3, 0.3, [0.8, 0.47, 1.0], 0.3, 0.8],
+    [0, 0.5, [1.0, 0.27, 0.53], 0.5, 0.6],
+    [2, 0.75, [0.53, 0.67, 1.0], 0.3, 1.4],
+  ];
+  const nps = Math.floor(count / spots.length);
+  for (let si = 0; si < spots.length; si++) {
+    const sp = spots[si], ba = (sp[0] / arms) * Math.PI * 2;
+    const cr = 1.2 + sp[1] * 18, ca = ba + cr * tight;
+    for (let j = 0; j < nps; j++) {
+      const i = si * nps + j;
+      const r = cr + (Math.random() - 0.5) * 2.5;
+      const a = ca + (Math.random() - 0.5) * sp[3];
+      p[i * 3] = Math.cos(a) * r;
+      p[i * 3 + 1] = (Math.random() - 0.5) * sp[4];
+      p[i * 3 + 2] = Math.sin(a) * r;
+      const m = 0.5 + Math.random() * 0.5;
+      cl[i * 3] = sp[2][0] * m; cl[i * 3 + 1] = sp[2][1] * m; cl[i * 3 + 2] = sp[2][2] * m;
+    }
+  }
+  return { pos: p, col: cl };
+}
+function showNebula(data) {
+  if (nebulaMesh) scene.remove(nebulaMesh);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(data.pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(data.col, 3));
+  nebulaMesh = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.6, vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.35, sizeAttenuation: true }));
+  scene.add(nebulaMesh);
+}
+
 // ═══════════════════════════════════════════════════════
 // UNIVERSE
 // ═══════════════════════════════════════════════════════
@@ -508,6 +552,7 @@ function animate() {
   innerDiskMat.uniforms.uTime.value = time;
   coreMesh.rotation.y += 0.06 * dt;
   if (galaxyStars) galaxyStars.rotation.y += speed * 0.06 * dt;
+  if (nebulaMesh) nebulaMesh.rotation.y += speed * 0.05 * dt;
   if (dustMesh) dustMesh.rotation.y += speed * 0.06 * dt;
   if (nebula) nebula.rotation.y += speed * 0.05 * dt;
   composer.render();
