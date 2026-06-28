@@ -422,33 +422,25 @@ addEventListener('resize', () => {
 });
 
 // ═══════════════════════════════════════════════════════
-// MUSIC PLAYER
-// ═══════════════════════════════════════════════════════
-const YT_ID = 'Kw0oQruXy0E';
-let ytPlayer = null, musicOn = false;
+// ── Music Player ─────────────────────────────────────
+const bgAudio = document.getElementById('bgAudio');
+let musicOn = false;
 const musicBtn = document.getElementById('musicToggle');
 
-window.onYouTubeIframeAPIReady = () => {
-  ytPlayer = new YT.Player('youtubePlayer', {
-    videoId: YT_ID, playerVars: { autoplay: 0, controls: 0, loop: 1, playlist: YT_ID },
-    events: { onReady: () => ytPlayer.setVolume(25) }
-  });
-};
-setTimeout(() => { if (!window.YT) musicBtn.style.display = 'none'; }, 5000);
+bgAudio.volume = 0.3;
 
 musicBtn.addEventListener('click', () => {
-  if (!ytPlayer) return;
-  musicOn ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
-  musicOn = !musicOn;
+  if (musicOn) { bgAudio.pause(); musicOn = false; }
+  else { bgAudio.play().catch(() => {}); musicOn = true; }
   musicBtn.textContent = musicOn ? '🔊' : '🔇';
   musicBtn.classList.toggle('muted', !musicOn);
 });
 
 function startMusic() {
-  if (!musicOn && ytPlayer) { ytPlayer.playVideo(); musicOn = true; musicBtn.textContent = '🔊'; }
-  ['click','touchstart','keydown'].forEach(e => removeEventListener(e, startMusic));
+  if (!musicOn) { bgAudio.play().catch(() => {}); musicOn = true; musicBtn.textContent = '🔊'; musicBtn.classList.remove('muted'); }
+  ['click','touchstart','keydown'].forEach(e => document.removeEventListener(e, startMusic));
 }
-['click','touchstart','keydown'].forEach(e => addEventListener(e, startMusic, { once: true }));
+['click','touchstart','keydown'].forEach(e => document.addEventListener(e, startMusic, { once: true }));
 
 // ═══════════════════════════════════════════════════════
 // LOADING
