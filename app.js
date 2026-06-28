@@ -73,32 +73,32 @@ const glowSphere = new THREE.Mesh(
 coreGroup.add(glowSphere);
 
 // Wavy multicolor data rings
-const ringColors = [0x4488ff, 0xff4488, 0x44ff88, 0xffaa44, 0x8844ff, 0x44ddff];
-for (let i = 0; i < 6; i++) {
-  const radius = 0.8 + i * 0.45;
-  const segments = 64;
+const ringColors2 = [0x4488ff, 0xff4488, 0x44ff88];
+for (let i = 0; i < 3; i++) {
+  const radius = 1.5 + i * 3.5;
+  const segments = 96;
   const geo = new THREE.BufferGeometry();
   const pos = new Float32Array(segments * 3), col = new Float32Array(segments * 3);
   for (let j = 0; j < segments; j++) {
     const a = (j / segments) * Math.PI * 2;
-    const wave = Math.sin(a * 3 + i * 1.2) * 0.08 * (0.5 + i * 0.15);
+    const wave = Math.sin(a * 4 + i * 1.5) * 0.2 * (0.8 + i * 0.4);
     pos[j * 3] = Math.cos(a) * (radius + wave);
-    pos[j * 3 + 1] = Math.sin(a * 2 + i) * 0.05 + wave * 0.3;
+    pos[j * 3 + 1] = Math.sin(a * 3 + i * 2) * 0.15 + wave * 0.3;
     pos[j * 3 + 2] = Math.sin(a) * (radius + wave);
-    const rc = new THREE.Color(ringColors[i % ringColors.length]);
-    const rc2 = new THREE.Color(ringColors[(i + 2) % ringColors.length]);
+    const rc = new THREE.Color(ringColors2[i]);
+    const rc2 = new THREE.Color(ringColors2[(i + 1) % 3]);
     const rc3 = rc.clone().lerp(rc2, j / segments);
     col[j * 3] = rc3.r; col[j * 3 + 1] = rc3.g; col[j * 3 + 2] = rc3.b;
   }
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   const mat = new THREE.PointsMaterial({
-    size: 0.05, vertexColors: true, blending: THREE.AdditiveBlending,
-    transparent: true, opacity: 0.3 + i * 0.05, depthWrite: false
+    size: 0.12, vertexColors: true, blending: THREE.AdditiveBlending,
+    transparent: true, opacity: 0.35 + i * 0.08, depthWrite: false
   });
   const ring = new THREE.Points(geo, mat);
-  ring.rotation.x = Math.PI * (0.2 + i * 0.04);
-  ring.userData = { speed: 0.6 + i * 0.3, tilt: 0.2 + i * 0.04, wavePhase: 0 };
+  ring.rotation.x = Math.PI * (0.15 + i * 0.06);
+  ring.userData = { speed: 0.4 + i * 0.2, tilt: 0.15 + i * 0.06, wavePhase: 0 };
   coreGroup.add(ring);
 }
 
