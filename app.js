@@ -544,6 +544,34 @@ renderer.domElement.addEventListener('touchmove', (e) => { if (e.touches.length 
 setTimeout(() => { const tip = document.getElementById('tooltip'); if (tip) tip.style.opacity = '0'; }, 12000);
 
 // ═══════════════════════════════════════════════════════
+// 🎵 MUSIC PLAYER (YouTube - Tìm Em)
+// ═══════════════════════════════════════════════════════
+
+const YT_VIDEO_ID = 'Kw0oQruXy0E';
+let player = null, musicPlaying = true;
+
+window.onYouTubeIframeAPIReady = () => {
+  player = new YT.Player('youtubePlayer', {
+    videoId: YT_VIDEO_ID,
+    playerVars: { autoplay: 1, controls: 0, loop: 1, playlist: YT_VIDEO_ID, mute: 0, modestbranding: 1, rel: 0 },
+    events: {
+      onReady() { player.playVideo(); player.unMute(); },
+      onError() { document.getElementById('musicToggle').textContent = '❌'; }
+    }
+  });
+};
+
+document.getElementById('musicToggle').addEventListener('click', () => {
+  if (!player) return;
+  if (musicPlaying) { player.pauseVideo(); }
+  else { player.playVideo(); }
+  musicPlaying = !musicPlaying;
+  const btn = document.getElementById('musicToggle');
+  btn.textContent = musicPlaying ? '🔊' : '🔇';
+  btn.classList.toggle('muted', !musicPlaying);
+});
+
+// ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
 
