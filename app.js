@@ -107,24 +107,28 @@ for (let i = 0; i < 1; i++) {
 // ═══════════════════════════════════════════════════════
 function makeArms(count) {
   const p = new Float32Array(count * 3), c = new Float32Array(count * 3), s = new Float32Array(count);
-  // 2 arms, rainbow gradient along each
+  // 2 arms, 5 rotation loops, per-ring random colors
+  // Pre-generate random hues for each ring (0-9)
+  const ringHues = [];
+  for (let ri = 0; ri < 12; ri++) {
+    ringHues.push(Math.random() < 0.5 ? Math.random() * 0.1 : 0.72 + Math.random() * 0.15);
+  }
   for (let i = 0; i < count; i++) {
     const arm = i % 2;
     const t = (i - arm) / count * 2;
     const r = 0.8 + Math.pow(t, 0.6) * 8.5;
-    const angle = arm * Math.PI + r * 2.2 + t * 0.4;
+    const angle = arm * Math.PI + r * 3.4 + t * 0.3;
     const scatter = (Math.random() - 0.5) * (0.3 + t * 0.5);
     const rad = r + (Math.random() - 0.5) * 0.15;
     p[i * 3] = Math.cos(angle + scatter) * rad * 1.5;
     p[i * 3 + 1] = (Math.random() - 0.5) * (0.2 + t * 0.5);
     p[i * 3 + 2] = Math.sin(angle + scatter) * rad;
 
-    // Gradient: red → pink → purple only
-    const hue = t < 0.5 ? t * 0.12 : 0.72 + (t - 0.5) * 0.26;
-    // Saturation higher in middle, lower at edges
-    const sat = 0.4 + 0.4 * Math.sin(t * Math.PI);
-    // Brightness higher near core, dimmer at edges
-    const lig = 0.7 - t * 0.3 + Math.random() * 0.15;
+    // Per-ring random color (each rotation loop gets a random hue)
+    const ring = Math.min(Math.floor(r), 11);
+    const hue = ringHues[ring];
+    const sat = 0.5 + Math.random() * 0.4;
+    const lig = 0.5 + Math.random() * 0.3;
     const col = new THREE.Color().setHSL(hue, sat, lig);
     c[i * 3] = col.r; c[i * 3 + 1] = col.g; c[i * 3 + 2] = col.b;
     s[i] = (0.3 + t * 0.3) * (0.4 + Math.random() * 0.6);
