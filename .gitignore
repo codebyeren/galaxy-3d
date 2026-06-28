@@ -6,3 +6,6 @@
 data/
 *.m4a
 *.mp3
+
+tim-em.*
+!tim-em.m4a
