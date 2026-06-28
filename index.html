@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dải Ngân Hà 3D - Galaxy Viewer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="container"></div>
+
+  <!-- ========== DESKTOP: ADMIN VIEW ========== -->
+  <div id="adminView" class="desktop-only">
+    <!-- Thanh điều khiển -->
+    <div id="controls">
+      <div class="controls-title">⚙️ Admin: Điều khiển thiên hà</div>
+      <div class="ctrl-group">
+        <label>Số nhánh xoắn: <span id="armsVal">4</span></label>
+        <input type="range" id="arms" min="2" max="8" value="4" step="1">
+      </div>
+      <div class="ctrl-group">
+        <label>Độ xoắn: <span id="spiralVal">2.5</span></label>
+        <input type="range" id="spiral" min="1" max="5" value="2.5" step="0.1">
+      </div>
+      <div class="ctrl-group">
+        <label>Số sao: <span id="countVal">15000</span></label>
+        <input type="range" id="count" min="5000" max="40000" value="15000" step="1000">
+      </div>
+      <div class="ctrl-group">
+        <label>Tốc độ quay: <span id="speedVal">0.2</span></label>
+        <input type="range" id="speed" min="0" max="2" value="0.2" step="0.05">
+      </div>
+      <button id="resetBtn">🔄 Reset góc nhìn</button>
+      <button id="autoRotateBtn">▶ Tự động xoay</button>
+      <button id="toggleImagesBtn">🖼 Ẩn/Hiện ảnh</button>
+    </div>
+
+    <!-- Panel ảnh -->
+    <div id="imagePanel">
+      <div class="panel-header">
+        <span>📷 Admin: Quản lý ảnh</span>
+        <button id="closePanel">✕</button>
+      </div>
+      <div id="imageGrid"></div>
+      <div class="panel-footer">
+        <input type="text" id="imageUrl" placeholder="Dán URL ảnh vào đây...">
+        <button id="addImage">+ Thêm ảnh</button>
+        <label class="upload-btn">
+          📁 Tải lên
+          <input type="file" id="imageUpload" accept="image/*" multiple hidden>
+        </label>
+      </div>
+    </div>
+    <button id="openPanelBtn" title="Bộ sưu tập ảnh">📷</button>
+  </div>
+
+  <!-- ========== MOBILE: USER VIEW ========== -->
+  <div id="userView" class="mobile-only">
+    <div id="mobileTopBar">
+      <div class="mobile-logo">🌌 Dải Ngân Hà</div>
+      <div class="mobile-hint">Chạm & kéo để khám phá</div>
+    </div>
+    <div id="mobileBottomBar">
+      <button id="mobileGalleryBtn" class="mobile-btn">📷</button>
+      <button id="mobileAutoRotateBtn" class="mobile-btn">▶</button>
+      <button id="mobileResetBtn" class="mobile-btn">🔄</button>
+      <button id="mobileZoomInBtn" class="mobile-btn">🔍+</button>
+      <button id="mobileZoomOutBtn" class="mobile-btn">🔍-</button>
+    </div>
+
+    <!-- Mobile gallery modal -->
+    <div id="mobileGallery" class="mobile-modal">
+      <div class="mobile-modal-header">
+        <span>📷 Ảnh vũ trụ</span>
+        <button id="mobileGalleryClose">✕</button>
+      </div>
+      <div id="mobileImageGrid"></div>
+    </div>
+  </div>
+
+  <!-- Tooltip (desktop only) -->
+  <div id="tooltip" class="desktop-only">
+    🖱 Kéo chuột: xoay | Cuộn: zoom | Chuột phải: di chuyển | Nhấp vào ảnh: xem
+  </div>
+
+  <!-- Badge chế độ -->
+  <div id="modeBadge"></div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
