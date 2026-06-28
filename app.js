@@ -82,7 +82,7 @@ for (let i = 0; i < 3; i++) {
   for (let j = 0; j < segments; j++) {
     const a = (j / segments) * Math.PI * 2;
     const wave = Math.sin(a * 4 + i * 1.5) * 0.2 * (0.8 + i * 0.4);
-    pos[j * 3] = Math.cos(a) * (radius * 1.5 + wave);
+    pos[j * 3] = Math.cos(a) * (radius + wave);
     pos[j * 3 + 1] = Math.sin(a * 3 + i * 2) * 0.15 + wave * 0.3;
     pos[j * 3 + 2] = Math.sin(a) * (radius + wave);
     const rc = new THREE.Color(ringColors2[i]);
@@ -116,7 +116,7 @@ function makeArms(count) {
     // More scatter = thicker arm
     const scatter = (Math.random() - 0.5) * (0.15 + t * 0.35);
     const rad = r + (Math.random() - 0.5) * 0.2;
-    p[i * 3] = Math.cos(angle + scatter) * rad;
+    p[i * 3] = Math.cos(angle + scatter) * rad * 1.5; // elliptical galaxy
     p[i * 3 + 1] = (Math.random() - 0.5) * (0.05 + t * 0.15);
     p[i * 3 + 2] = Math.sin(angle + scatter) * rad;
 
