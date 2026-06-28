@@ -119,8 +119,8 @@ function makeArms(count) {
     p[i * 3 + 1] = (Math.random() - 0.5) * (0.2 + t * 0.5);
     p[i * 3 + 2] = Math.sin(angle + scatter) * rad;
 
-    // Gradient: red → orange → yellow → green → blue → purple along arm
-    const hue = (t * 0.75 + arm * 0.05) % 0.85;
+    // Gradient: red → pink → purple only
+    const hue = t < 0.5 ? t * 0.12 : 0.72 + (t - 0.5) * 0.26;
     // Saturation higher in middle, lower at edges
     const sat = 0.4 + 0.4 * Math.sin(t * Math.PI);
     // Brightness higher near core, dimmer at edges
