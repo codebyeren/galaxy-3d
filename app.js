@@ -4,185 +4,113 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
-// ── Scene, Camera, Renderer ──────────────────────────
 const container = document.getElementById('container');
 const scene = new THREE.Scene();
 
-const camera = new THREE.PerspectiveCamera(55, container.clientWidth / container.clientHeight, 0.3, 200);
-camera.position.set(0, 10, 24);
+const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.3, 200);
+camera.position.set(0, 14, 22);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+renderer.toneMappingExposure = 1.0;
 container.appendChild(renderer.domElement);
 
-// ── Post Processing ─────────────────────────────────
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-const bloomPass = new UnrealBloomPass(
-  new THREE.Vector2(container.clientWidth, container.clientHeight),
-  0.5, 0.5, 0.9
-);
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(container.clientWidth, container.clientHeight), 0.4, 0.6, 0.9);
 composer.addPass(bloomPass);
 
-// ── Orbit Controls ───────────────────────────────────
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.06;
-controls.autoRotate = true;
-controls.autoRotateSpeed = 0.25;
-controls.minDistance = 4;
-controls.maxDistance = 60;
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.autoRotate = true; controls.autoRotateSpeed = 0.2;
+controls.minDistance = 4; controls.maxDistance = 60;
 controls.maxPolarAngle = Math.PI * 0.8;
-controls.target.set(0, 0, 0);
-controls.update();
+controls.target.set(0, 0, 0); controls.update();
 
-// ── Lighting ─────────────────────────────────────────
-scene.add(new THREE.AmbientLight(0x0a0a20, 0.3));
-const coreLight = new THREE.PointLight(0xffddbb, 100, 40, 1.8);
-coreLight.position.set(0, 0, 0);
-scene.add(coreLight);
+scene.add(new THREE.AmbientLight(0x0a0a20, 0.2));
+const coreLight = new THREE.PointLight(0xffddbb, 80, 35, 1.8);
+coreLight.position.set(0, 0, 0); scene.add(coreLight);
 
 // ═══════════════════════════════════════════════════════
-// REALISTIC GALAXY SYSTEM
+// GALAXY CORE
 // ═══════════════════════════════════════════════════════
+const coreGroup = new THREE.Group(); scene.add(coreGroup);
 
-// ── Galaxy Core ──────────────────────────────────────
-const coreGroup = new THREE.Group();
-scene.add(coreGroup);
+const coreGeo = new THREE.SphereGeometry(0.55, 32, 32);
+const coreMesh = new THREE.Mesh(coreGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }));
+coreGroup.add(coreMesh);
 
-// Central bright core
-const coreGeo = new THREE.SphereGeometry(0.6, 32, 32);
-const coreMat = new THREE.MeshBasicMaterial({ color: 0xffeedd });
-const core = new THREE.Mesh(coreGeo, coreMat);
-coreGroup.add(core);
-
-// Glowing core shader
-const coreGlowGeo = new THREE.SphereGeometry(2.5, 32, 32);
+const coreGlowGeo = new THREE.SphereGeometry(2.2, 32, 32);
 const coreGlowMat = new THREE.ShaderMaterial({
-  uniforms: {
-    uTime: { value: 0 },
-    uColor1: { value: new THREE.Color(0xffcc88) },
-    uColor2: { value: new THREE.Color(0xff6600) },
-    uColor3: { value: new THREE.Color(0x3300aa) }
-  },
-  vertexShader: `
-    varying vec3 vNormal; varying vec3 vPosition;
-    void main() {
-      vec4 wp = modelMatrix * vec4(position,1.0);
-      vPosition = wp.xyz;
-      vNormal = normalize(mat3(modelMatrix)*normal);
-      gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);
-    }`,
-  fragmentShader: `
-    varying vec3 vNormal; varying vec3 vPosition;
-    uniform float uTime; uniform vec3 uColor1,uColor2,uColor3;
-    void main() {
-      vec3 vd = normalize(cameraPosition-vPosition);
-      float f = 1.0-abs(dot(vd,vNormal));
-      f = pow(f,3.0);
-      float p = 0.88+0.12*sin(uTime*1.5);
-      float r = length(vPosition.xz)/2.5;
-      vec3 c = mix(mix(uColor1,uColor2,f),uColor3,r*0.6)*p;
-      gl_FragColor=vec4(c,f*0.75);
-    }`,
+  uniforms: { uTime: { value: 0 }, uC1: { value: new THREE.Color('#ffe8cc') }, uC2: { value: new THREE.Color('#ff9944') }, uC3: { value: new THREE.Color('#3311aa') } },
+  vertexShader: `varying vec3 vN,vP;void main(){vec4 w=modelMatrix*vec4(position,1.);vP=w.xyz;vN=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+  fragmentShader: `varying vec3 vN,vP;uniform float uTime;uniform vec3 uC1,uC2,uC3;void main(){vec3 vd=normalize(cameraPosition-vP);float f=1.-abs(dot(vd,vN));f=pow(f,2.8);float p=.9+.1*sin(uTime*1.3);float r=length(vP.xz)/2.2;vec3 c=mix(mix(uC1,uC2,f),uC3,r*.5)*p;gl_FragColor=vec4(c,f*.7);}`,
   transparent: true, depthWrite: false
 });
-const coreGlow = new THREE.Mesh(coreGlowGeo, coreGlowMat);
-coreGroup.add(coreGlow);
+coreGroup.add(new THREE.Mesh(coreGlowGeo, coreGlowMat));
 
-// Accretion disk ring
-const diskGeo = new THREE.RingGeometry(0.5, 4.5, 128);
-const diskMat = new THREE.ShaderMaterial({
+// Inner warm glow disk
+const innerDiskGeo = new THREE.RingGeometry(0.4, 3.5, 96);
+const innerDiskMat = new THREE.ShaderMaterial({
   uniforms: { uTime: { value: 0 } },
-  vertexShader: `
-    varying vec2 vUv;
-    void main() { vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-  fragmentShader: `
-    varying vec2 vUv; uniform float uTime;
-    void main() {
-      float d = abs(vUv.x-0.5)*2.0;
-      float alpha = smoothstep(0.0,0.15,d)*smoothstep(1.0,0.7,d);
-      alpha *= 0.3+0.15*sin(uTime+vUv.x*20.0);
-      gl_FragColor=vec4(1.0,0.85,0.55,alpha*0.5);
-    }`,
+  vertexShader: `varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+  fragmentShader: `varying vec2 vUv;uniform float uTime;void main(){float d=abs(vUv.x-.5)*2.;float a=smoothstep(0.,.12,d)*smoothstep(1.,.65,d);a*=.4+.12*sin(uTime+vUv.x*15.);gl_FragColor=vec4(1.,.82,.45,a*.45);}`,
   transparent: true, depthWrite: false, side: THREE.DoubleSide
 });
-const disk = new THREE.Mesh(diskGeo, diskMat);
-disk.rotation.x = Math.PI * 0.45;
-coreGroup.add(disk);
+const innerDisk = new THREE.Mesh(innerDiskGeo, innerDiskMat);
+innerDisk.rotation.x = Math.PI * 0.5; coreGroup.add(innerDisk);
 
-// ── Main Spiral Arms (Stars) ─────────────────────────
-function generateGalaxy(starCount, arms, tightness) {
-  const pos = new Float32Array(starCount * 3);
-  const col = new Float32Array(starCount * 3);
-  const siz = new Float32Array(starCount);
+// ═══════════════════════════════════════════════════════
+// SPIRAL ARMS — clean, structured, beautiful
+// ═══════════════════════════════════════════════════════
 
-  for (let i = 0; i < starCount; i++) {
-    // Use power distribution so there's density near core AND outer regions
-    const r = Math.pow(Math.random(), 0.45) * 20 + 0.2;
-    const armIndex = i % arms;
-    const armBase = (armIndex / arms) * Math.PI * 2;
+function generateCleanSpiral(count, arms, tightness) {
+  const pos = new Float32Array(count * 3);
+  const col = new Float32Array(count * 3);
+  const siz = new Float32Array(count);
+  const perArm = Math.floor(count / arms);
 
-    // Logarithmic spiral: tighter near core, spreads out
-    const spiral = r * tightness;
-    const armOffset = (armIndex % 2 === 0) ? 0 : 0.3; // alternate arm offsets
+  for (let arm = 0; arm < arms; arm++) {
+    const baseAngle = (arm / arms) * Math.PI * 2;
 
-    // Scatter: more near core, less at edges (tight structure)
-    const scatterA = (Math.random() - 0.5) * (0.3 + r * 0.04);
-    const scatterR = (Math.random() - 0.5) * (0.2 + r * 0.03);
+    for (let j = 0; j < perArm; j++) {
+      const i = arm * perArm + j;
+      // Radius follows arm from inner to outer
+      const t = j / perArm; // 0..1 along arm
+      const r = 1.5 + t * 18;
 
-    // Off-arm density (some stars between arms)
-    const offArm = (Math.random() < 0.08) ? (Math.random() - 0.5) * Math.PI * 0.6 : 0;
+      // Logarithmic spiral
+      const spiral = r * tightness;
+      // Gaussian scatter perpendicular to arm (tight near core, wider at edges)
+      const scatter = (Math.random() + Math.random() + Math.random()) / 3 - 0.5;
+      const scatterWidth = 0.15 + t * 0.55;
+      const angle = baseAngle + spiral + scatter * scatterWidth;
 
-    const angle = armBase + spiral + armOffset + scatterA + offArm;
-    const radius = r + scatterR;
+      // Radial scatter (small)
+      const rScatter = (Math.random() - 0.5) * 0.3;
+      const radius = r + rScatter;
 
-    const x = Math.cos(angle) * radius;
-    const z = Math.sin(angle) * radius;
-    // Flatter disk, slight warp
-    const y = (Math.random() - 0.5) * (0.25 + r * 0.015) * (1.0 - Math.min(r / 22, 0.95));
-    // Add slight warp at edges
-    const warp = Math.sin(angle * 2 + r * 0.3) * r * 0.04;
-    const finalY = y + warp;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      // Very flat disk near center, slightly thicker at edges
+      const y = (Math.random() - 0.5) * (0.08 + t * 0.25) * (1 - t * 0.7);
 
-    pos[i * 3] = x;
-    pos[i * 3 + 1] = finalY;
-    pos[i * 3 + 2] = z;
+      pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
 
-    // Realistic star color distribution
-    const t = r / 20;
-    const color = new THREE.Color();
+      // Color: warm white → yellow → blue-white → cool blue
+      const color = new THREE.Color();
+      if (t < 0.04) color.setHSL(0.14, 0.2, 0.98);
+      else if (t < 0.15) color.setHSL(0.12 + Math.random() * 0.04, 0.4, 0.88 + Math.random() * 0.12);
+      else if (t < 0.4) color.setHSL(0.1 + Math.random() * 0.06, 0.5, 0.7 + Math.random() * 0.25);
+      else if (t < 0.7) color.setHSL(0.55 + Math.random() * 0.1, 0.5, 0.55 + Math.random() * 0.35);
+      else color.setHSL(0.58 + Math.random() * 0.08, 0.4, 0.4 + Math.random() * 0.3);
 
-    if (t < 0.04) {
-      // Core: very hot white/blue-white
-      color.setHSL(0.15, 0.3, 0.95 + Math.random() * 0.05);
-    } else if (t < 0.12) {
-      // Inner: hot yellow-white to blue-white
-      color.setHSL(0.12 + Math.random() * 0.1, 0.5, 0.85 + Math.random() * 0.15);
-    } else if (t < 0.35) {
-      // Middle: yellow to orange (like our sun)
-      color.setHSL(0.08 + Math.random() * 0.12, 0.7, 0.65 + Math.random() * 0.3);
-    } else if (t < 0.65) {
-      // Outer: blue-white young stars in spiral arms
-      color.setHSL(0.55 + Math.random() * 0.15, 0.6, 0.55 + Math.random() * 0.4);
-    } else {
-      // Edge: dim red/brown dwarfs
-      color.setHSL(0.05 + Math.random() * 0.08, 0.4, 0.3 + Math.random() * 0.3);
+      col[i * 3] = color.r; col[i * 3 + 1] = color.g; col[i * 3 + 2] = color.b;
+      siz[i] = (1 - t * 0.6) * (Math.random() * 2 + 0.6);
     }
-
-    col[i * 3] = color.r;
-    col[i * 3 + 1] = color.g;
-    col[i * 3 + 2] = color.b;
-
-    // Size: mostly small, few large bright ones
-    const brightness = 1.0 - t;
-    siz[i] = (Math.random() < 0.9) ? Math.random() * 1.8 + 0.3 : Math.random() * 4 + 2;
-    siz[i] *= brightness;
   }
-
   return { positions: pos, colors: col, sizes: siz };
 }
 
@@ -194,143 +122,154 @@ function createGalaxyMesh(data) {
   geo.setAttribute('color', new THREE.BufferAttribute(data.colors, 3));
   geo.setAttribute('size', new THREE.BufferAttribute(data.sizes, 1));
   const mat = new THREE.PointsMaterial({
-    size: 0.06, vertexColors: true, blending: THREE.AdditiveBlending,
-    depthWrite: false, transparent: true, opacity: 0.95, sizeAttenuation: true
+    size: 0.07, vertexColors: true, blending: THREE.AdditiveBlending,
+    depthWrite: false, transparent: true, opacity: 0.85, sizeAttenuation: true
   });
   galaxyStars = new THREE.Points(geo, mat);
   scene.add(galaxyStars);
 }
 
-// ── Dust Lanes ───────────────────────────────────────
-let dustLanes = null;
-function generateDust(starCount, arms, tightness) {
-  const pos = new Float32Array(starCount * 3);
-  const col = new Float32Array(starCount * 3);
-  const siz = new Float32Array(starCount);
+// ═══════════════════════════════════════════════════════
+// DUST LANDS — smooth, dark bands along arms
+// ═══════════════════════════════════════════════════════
 
-  for (let i = 0; i < starCount; i++) {
-    const r = Math.pow(Math.random(), 0.5) * 18 + 0.5;
-    const armIndex = i % arms;
-    const armBase = (armIndex / arms) * Math.PI * 2;
-    // Dust between arms (offset by half arm width)
-    const spiral = r * tightness + Math.PI / arms;
-    const scatterA = (Math.random() - 0.5) * 0.5;
-    const scatterR = (Math.random() - 0.5) * 0.4;
-    const angle = armBase + spiral + scatterA;
-    const radius = r + scatterR;
+let dustMesh = null;
+function generateDustBands(count, arms, tightness) {
+  const pos = new Float32Array(count * 3);
+  const col = new Float32Array(count * 3);
+  const perArm = Math.floor(count / arms);
 
-    pos[i * 3] = Math.cos(angle) * radius;
-    pos[i * 3 + 1] = (Math.random() - 0.5) * 0.3;
-    pos[i * 3 + 2] = Math.sin(angle) * radius;
+  for (let arm = 0; arm < arms; arm++) {
+    const baseAngle = (arm / arms) * Math.PI * 2;
+    // Dust trails behind the star arm
+    const dustOffset = -0.25;
 
-    // Dark brown/grey
-    const c = new THREE.Color().setHSL(0.08, 0.15, 0.08 + Math.random() * 0.06);
-    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
-    siz[i] = Math.random() * 3 + 1;
+    for (let j = 0; j < perArm; j++) {
+      const i = arm * perArm + j;
+      const t = j / perArm;
+      const r = 1.2 + t * 17;
+      const spiral = r * tightness + dustOffset;
+      const scatter = (Math.random() + Math.random()) / 2 - 0.5;
+      const angle = baseAngle + spiral + scatter * 0.8;
+      const radius = r + (Math.random() - 0.5) * 0.6;
+      const y = (Math.random() - 0.5) * 0.15;
+
+      pos[i * 3] = Math.cos(angle) * radius;
+      pos[i * 3 + 1] = y;
+      pos[i * 3 + 2] = Math.sin(angle) * radius;
+
+      // Dark warm brown/grey
+      const c = new THREE.Color().setHSL(0.07 + Math.random() * 0.04, 0.2, 0.06 + Math.random() * 0.05);
+      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+    }
   }
-  return { positions: pos, colors: col, sizes: siz };
+  return { positions: pos, colors: col };
 }
 
-function createDustMesh(data) {
-  if (dustLanes) scene.remove(dustLanes);
+function createDustMeshFn(data) {
+  if (dustMesh) scene.remove(dustMesh);
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(data.positions, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(data.colors, 3));
   const mat = new THREE.PointsMaterial({
-    size: 0.12, vertexColors: true, blending: THREE.NormalBlending,
-    depthWrite: false, transparent: true, opacity: 0.35, sizeAttenuation: true
+    size: 0.2, vertexColors: true, blending: THREE.NormalBlending,
+    depthWrite: false, transparent: true, opacity: 0.45, sizeAttenuation: true
   });
-  dustLanes = new THREE.Points(geo, mat);
-  scene.add(dustLanes);
+  dustMesh = new THREE.Points(geo, mat);
+  scene.add(dustMesh);
 }
 
-// ── Nebula Clouds ────────────────────────────────────
-let nebulaParticles = null;
-function generateNebula(count) {
+// ═══════════════════════════════════════════════════════
+// NEBULA CLOUDS — soft glowing patches
+// ═══════════════════════════════════════════════════════
+
+let nebula = null;
+function generateNebulaClouds(count, arms, tightness) {
   const pos = new Float32Array(count * 3);
   const col = new Float32Array(count * 3);
-  const siz = new Float32Array(count);
-
-  const nebulaColors = [
-    new THREE.Color('#ff4488'), // pink
-    new THREE.Color('#4488ff'), // blue
-    new THREE.Color('#44ff88'), // green
-    new THREE.Color('#ff8844'), // orange
-    new THREE.Color('#8844ff'), // purple
+  const clouds = [
+    { arm: 0, t: 0.35, color: '#ff6699', spread: 0.4 },
+    { arm: 1, t: 0.55, color: '#6699ff', spread: 0.5 },
+    { arm: 2, t: 0.4, color: '#9966ff', spread: 0.35 },
+    { arm: 3, t: 0.6, color: '#ff8844', spread: 0.45 },
+    { arm: 0, t: 0.7, color: '#44aaff', spread: 0.35 },
+    { arm: 2, t: 0.7, color: '#ff4477', spread: 0.3 },
   ];
+  const perCloud = Math.floor(count / clouds.length);
 
-  for (let i = 0; i < count; i++) {
-    // Place nebula in specific regions of spiral arms
-    const r = 3 + Math.random() * 14;
-    const clusterAngle = Math.random() * Math.PI * 2;
-    const clusterSpread = 0.6;
+  for (let ci = 0; ci < clouds.length; ci++) {
+    const cloud = clouds[ci];
+    const baseAngle = (cloud.arm / arms) * Math.PI * 2;
+    const centerR = 1.5 + cloud.t * 18;
+    const centerAngle = baseAngle + centerR * tightness;
 
-    const angle = clusterAngle + (Math.random() - 0.5) * clusterSpread;
-    const radius = r + (Math.random() - 0.5) * 2;
+    for (let j = 0; j < perCloud; j++) {
+      const i = ci * perCloud + j;
+      const r = centerR + (Math.random() - 0.5) * 2.5;
+      const a = centerAngle + (Math.random() - 0.5) * cloud.spread;
+      const y = (Math.random() - 0.5) * 1.2;
 
-    pos[i * 3] = Math.cos(angle) * radius;
-    pos[i * 3 + 1] = (Math.random() - 0.5) * 1.5;
-    pos[i * 3 + 2] = Math.sin(angle) * radius;
+      pos[i * 3] = Math.cos(a) * r;
+      pos[i * 3 + 1] = y;
+      pos[i * 3 + 2] = Math.sin(a) * r;
 
-    const c = nebulaColors[Math.floor(Math.random() * nebulaColors.length)].clone();
-    c.multiplyScalar(0.6 + Math.random() * 0.4);
-    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
-    siz[i] = Math.random() * 6 + 2;
+      const c = new THREE.Color(cloud.color).multiplyScalar(0.5 + Math.random() * 0.5);
+      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+    }
   }
-  return { positions: pos, colors: col, sizes: siz };
+  return { positions: pos, colors: col };
 }
 
 function createNebulaMesh(data) {
-  if (nebulaParticles) scene.remove(nebulaParticles);
+  if (nebula) scene.remove(nebula);
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(data.positions, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(data.colors, 3));
-  geo.setAttribute('size', new THREE.BufferAttribute(data.sizes, 1));
+  // Use large sprites for gaseous look
   const mat = new THREE.PointsMaterial({
-    size: 0.35, vertexColors: true, blending: THREE.AdditiveBlending,
-    depthWrite: false, transparent: true, opacity: 0.25, sizeAttenuation: true
+    size: 0.55, vertexColors: true, blending: THREE.AdditiveBlending,
+    depthWrite: false, transparent: true, opacity: 0.28, sizeAttenuation: true
   });
-  nebulaParticles = new THREE.Points(geo, mat);
-  scene.add(nebulaParticles);
+  nebula = new THREE.Points(geo, mat);
+  scene.add(nebula);
 }
 
-// ── Halo (old globular cluster stars) ────────────────
+// ═══════════════════════════════════════════════════════
+// HALO — subtle sphere of old stars
+// ═══════════════════════════════════════════════════════
+
 function createHalo() {
-  const count = 4000;
+  const count = 2500;
   const pos = new Float32Array(count * 3);
   const col = new Float32Array(count * 3);
-
   for (let i = 0; i < count; i++) {
-    // Spherical distribution weighted toward center
-    const r = 4 + Math.pow(Math.random(), 0.6) * 30;
+    const r = 5 + Math.pow(Math.random(), 0.5) * 28;
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(2 * Math.random() - 1);
-    // Flatten slightly
     pos[i * 3] = Math.sin(phi) * Math.cos(theta) * r;
-    pos[i * 3 + 1] = Math.sin(phi) * Math.sin(theta) * r * 0.4;
+    pos[i * 3 + 1] = Math.sin(phi) * Math.sin(theta) * r * 0.35;
     pos[i * 3 + 2] = Math.cos(phi) * r;
-
-    // Old, red stars
-    const c = new THREE.Color().setHSL(0.08 + Math.random() * 0.05, 0.3, 0.25 + Math.random() * 0.25);
+    const c = new THREE.Color().setHSL(0.08 + Math.random() * 0.05, 0.25, 0.2 + Math.random() * 0.2);
     col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
   }
-
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   const mat = new THREE.PointsMaterial({
-    size: 0.12, vertexColors: true, blending: THREE.AdditiveBlending,
-    depthWrite: false, transparent: true, opacity: 0.4, sizeAttenuation: true
+    size: 0.15, vertexColors: true, blending: THREE.AdditiveBlending,
+    depthWrite: false, transparent: true, opacity: 0.35, sizeAttenuation: true
   });
   scene.add(new THREE.Points(geo, mat));
 }
 
-// ── Background Universe ──────────────────────────────
+// ═══════════════════════════════════════════════════════
+// BACKGROUND UNIVERSE
+// ═══════════════════════════════════════════════════════
+
 function createUniverse() {
-  const count = 5000;
+  const count = 3500;
   const pos = new Float32Array(count * 3);
   const col = new Float32Array(count * 3);
-
   for (let i = 0; i < count; i++) {
     const r = 55 + Math.random() * 50;
     const theta = Math.random() * Math.PI * 2;
@@ -338,48 +277,37 @@ function createUniverse() {
     pos[i * 3] = Math.sin(phi) * Math.cos(theta) * r;
     pos[i * 3 + 1] = Math.sin(phi) * Math.sin(theta) * r;
     pos[i * 3 + 2] = Math.cos(phi) * r;
-
-    const hue = Math.random() < 0.7 ? 0.55 + Math.random() * 0.2 : Math.random();
-    const c = new THREE.Color().setHSL(hue, 0.3, 0.4 + Math.random() * 0.5);
+    const c = new THREE.Color().setHSL(0.55 + Math.random() * 0.25, 0.3, 0.35 + Math.random() * 0.55);
     col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
   }
-
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const mat = new THREE.PointsMaterial({
-    size: 0.18, vertexColors: true, blending: THREE.AdditiveBlending,
-    depthWrite: false, transparent: true
-  });
-  scene.add(new THREE.Points(geo, mat));
+  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({
+    size: 0.2, vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true
+  })));
 
-  // Add a few distant galaxies (small spiral-like clusters)
-  for (let g = 0; g < 8; g++) {
-    const gCount = 200;
-    const gPos = new Float32Array(gCount * 3);
-    const gCol = new Float32Array(gCount * 3);
-    const cx = (Math.random() - 0.5) * 80;
-    const cy = (Math.random() - 0.5) * 40;
-    const cz = (Math.random() - 0.5) * 80;
-
-    for (let i = 0; i < gCount; i++) {
-      const gr = Math.random() * 3 + 0.5;
+  // Distant galaxies
+  for (let g = 0; g < 6; g++) {
+    const gc = 150;
+    const gPos = new Float32Array(gc * 3);
+    const gCol = new Float32Array(gc * 3);
+    const cx = (Math.random() - 0.5) * 70, cy = (Math.random() - 0.5) * 35, cz = (Math.random() - 0.5) * 70;
+    for (let i = 0; i < gc; i++) {
+      const gr = Math.random() * 2.5;
       const ga = Math.random() * Math.PI * 2;
       gPos[i * 3] = cx + Math.cos(ga) * gr;
-      gPos[i * 3 + 1] = cy + (Math.random() - 0.5) * 0.3;
+      gPos[i * 3 + 1] = cy + (Math.random() - 0.5) * 0.25;
       gPos[i * 3 + 2] = cz + Math.sin(ga) * gr;
-      const gc = new THREE.Color().setHSL(0.5 + Math.random() * 0.2, 0.4, 0.3 + Math.random() * 0.4);
-      gCol[i * 3] = gc.r; gCol[i * 3 + 1] = gc.g; gCol[i * 3 + 2] = gc.b;
+      const gc2 = new THREE.Color().setHSL(0.5 + Math.random() * 0.2, 0.35, 0.25 + Math.random() * 0.35);
+      gCol[i * 3] = gc2.r; gCol[i * 3 + 1] = gc2.g; gCol[i * 3 + 2] = gc2.b;
     }
-
     const gGeo = new THREE.BufferGeometry();
     gGeo.setAttribute('position', new THREE.BufferAttribute(gPos, 3));
     gGeo.setAttribute('color', new THREE.BufferAttribute(gCol, 3));
-    const gMat = new THREE.PointsMaterial({
-      size: 0.1, vertexColors: true, blending: THREE.AdditiveBlending,
-      depthWrite: false, transparent: true
-    });
-    scene.add(new THREE.Points(gGeo, gMat));
+    scene.add(new THREE.Points(gGeo, new THREE.PointsMaterial({
+      size: 0.1, vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true
+    })));
   }
 }
 
@@ -399,89 +327,59 @@ function createFloatingImage(texture, dbId) {
   const radius = 22 + Math.random() * 10;
   const height = (Math.random() - 0.5) * 8;
   mesh.position.set(Math.cos(angle) * radius, height, Math.sin(angle) * radius);
-  mesh.lookAt(0, 0, 0);
-  mesh.rotateY((Math.random() - 0.5) * 0.5);
+  mesh.lookAt(0, 0, 0); mesh.rotateY((Math.random() - 0.5) * 0.5);
   mesh.userData = { dbId, orbitRadius: radius, orbitAngle: angle, orbitHeight: height, orbitSpeed: 0.015 + Math.random() * 0.04 };
-  scene.add(mesh);
-  floatingImages.push(mesh);
+  scene.add(mesh); floatingImages.push(mesh);
   return mesh;
 }
 
+function loadImageTexture(url) {
+  return new Promise((resolve, reject) => {
+    new THREE.TextureLoader().load(url, (t) => { t.colorSpace = THREE.SRGBColorSpace; resolve(t); }, undefined, () => reject(new Error('Failed: ' + url)));
+  });
+}
+
 // ═══════════════════════════════════════════════════════
-// API HELPERS
+// API + AUTH
 // ═══════════════════════════════════════════════════════
 
 const API_BASE = window.location.origin;
 let authToken = null;
 
-function authHeader() {
-  return authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
-}
-
+function authHeader() { return authToken ? { 'Authorization': `Bearer ${authToken}` } : {}; }
 async function apiGet(path) { const r = await fetch(API_BASE + path); return r.json(); }
-async function apiPost(path, body) {
-  const r = await fetch(API_BASE + path, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeader() }, body: JSON.stringify(body)
-  });
-  return r.json();
-}
-async function apiDelete(path) {
-  await fetch(API_BASE + path, { method: 'DELETE', headers: authHeader() });
-}
-async function apiUpload(file) {
-  const f = new FormData(); f.append('image', file);
-  const r = await fetch(API_BASE + '/api/images/upload', { method: 'POST', headers: authHeader(), body: f });
-  return r.json();
-}
+async function apiPost(path, body) { const r = await fetch(API_BASE + path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeader() }, body: JSON.stringify(body) }); return r.json(); }
+async function apiDelete(path) { await fetch(API_BASE + path, { method: 'DELETE', headers: authHeader() }); }
+async function apiUpload(file) { const f = new FormData(); f.append('image', file); const r = await fetch(API_BASE + '/api/images/upload', { method: 'POST', headers: authHeader(), body: f }); return r.json(); }
 
-// ═══════════════════════════════════════════════════════
-// AUTH
-// ═══════════════════════════════════════════════════════
-
+// Auth overlay
 const authOverlay = document.getElementById('authOverlay');
 const authPassword = document.getElementById('authPassword');
-const authSubmit = document.getElementById('authSubmit');
-const authSkip = document.getElementById('authSkip');
-const authError = document.getElementById('authError');
 const adminView = document.getElementById('adminView');
 
-authSubmit.addEventListener('click', async () => {
+document.getElementById('authSubmit').addEventListener('click', async () => {
   const pw = authPassword.value;
-  if (!pw) { authError.textContent = 'Vui lòng nhập mật khẩu'; return; }
+  if (!pw) { document.getElementById('authError').textContent = 'Vui lòng nhập mật khẩu'; return; }
   try {
-    const res = await fetch(API_BASE + '/api/auth', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw })
-    });
-    if (res.ok) {
-      authToken = pw;
-      localStorage.setItem('galaxy_token', pw);
-      authOverlay.classList.add('hidden');
-      adminView.style.display = 'block';
-    } else {
-      authError.textContent = '❌ Sai mật khẩu!';
-    }
-  } catch (_) { authError.textContent = '❌ Không kết nối được server'; }
+    const res = await fetch(API_BASE + '/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) });
+    if (res.ok) { authToken = pw; localStorage.setItem('galaxy_token', pw); authOverlay.classList.add('hidden'); adminView.style.display = 'block'; updateModeBadge(); }
+    else { document.getElementById('authError').textContent = '❌ Sai mật khẩu!'; }
+  } catch (_) { document.getElementById('authError').textContent = '❌ Không kết nối được server'; }
 });
 
-authSkip.addEventListener('click', () => {
-  authOverlay.classList.add('hidden');
-  adminView.style.display = 'none';
-});
+document.getElementById('authSkip').addEventListener('click', () => { authOverlay.classList.add('hidden'); adminView.style.display = 'none'; });
+authPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('authSubmit').click(); });
 
-authPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') authSubmit.click(); });
-
-// Check stored token
 const stored = localStorage.getItem('galaxy_token');
 if (stored) {
   authToken = stored;
-  // Verify
   fetch(API_BASE + '/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: stored }) })
-    .then(r => { if (r.ok) { authOverlay.classList.add('hidden'); adminView.style.display = 'block'; } else { authToken = null; localStorage.removeItem('galaxy_token'); } })
+    .then(r => { if (r.ok) { authOverlay.classList.add('hidden'); adminView.style.display = 'block'; updateModeBadge(); } else { authToken = null; localStorage.removeItem('galaxy_token'); } })
     .catch(() => {});
 }
 
 // ═══════════════════════════════════════════════════════
-// IMAGE PANEL LOGIC
+// IMAGE PANEL
 // ═══════════════════════════════════════════════════════
 
 let showFloatingImages = true;
@@ -490,28 +388,24 @@ function updateFloatingImagesVisibility() { floatingImages.forEach(m => { m.visi
 const imagePanel = document.getElementById('imagePanel');
 const imageGrid = document.getElementById('imageGrid');
 const openPanelBtn = document.getElementById('openPanelBtn');
-const closePanel = document.getElementById('closePanel');
-const toggleImagesBtn = document.getElementById('toggleImagesBtn');
 
 function closeImagePanel() { imagePanel.classList.add('hidden'); openPanelBtn.style.display = 'flex'; }
 function openImagePanel() { imagePanel.classList.remove('hidden'); openPanelBtn.style.display = 'none'; }
-closePanel.addEventListener('click', closeImagePanel);
+document.getElementById('closePanel').addEventListener('click', closeImagePanel);
 openPanelBtn.addEventListener('click', openImagePanel);
 
-toggleImagesBtn.addEventListener('click', () => {
+document.getElementById('toggleImagesBtn').addEventListener('click', () => {
   showFloatingImages = !showFloatingImages;
   updateFloatingImagesVisibility();
-  toggleImagesBtn.textContent = showFloatingImages ? '🖼 Ẩn/Hiện ảnh' : '🖼 Đang ẩn';
+  document.getElementById('toggleImagesBtn').textContent = showFloatingImages ? '🖼 Ẩn/Hiện ảnh' : '🖼 Đang ẩn';
 });
 
-// Image data
 const imageMap = new Map();
 const defaultImages = [
   'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=400&q=80',
   'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=400&q=80',
   'https://images.unsplash.com/photo-1502481851512-e9e2529bfbf9?w=400&q=80',
   'https://images.unsplash.com/photo-1543722530-d2c3201371e7?w=400&q=80',
-  'https://images.unsplash.com/photo-1464802686167-b939a6910659?w=400&q=80',
   'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&q=80',
   'https://images.unsplash.com/photo-1506703719100-b0a86c48d3b5?w=400&q=80',
   'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&q=80',
@@ -522,8 +416,7 @@ function getDisplayUrl(url) { return url.startsWith('/') ? API_BASE + url : url;
 function renderImageGrid() {
   imageGrid.innerHTML = '';
   imageMap.forEach((item, dbId) => {
-    const card = document.createElement('div');
-    card.className = 'image-card';
+    const card = document.createElement('div'); card.className = 'image-card';
     card.innerHTML = `<img src="${getDisplayUrl(item.url)}" loading="lazy"><button class="delete-btn" data-id="${dbId}">✕</button>`;
     card.addEventListener('click', (e) => { if (!e.target.classList.contains('delete-btn')) showFullscreen(getDisplayUrl(item.url)); });
     card.querySelector('.delete-btn').addEventListener('click', (e) => { e.stopPropagation(); removeImage(dbId); });
@@ -537,66 +430,42 @@ async function addImage(url) {
     const saved = await apiPost('/api/images', { url: url.trim() });
     if (saved.error) { alert(saved.error); return; }
     const texture = await loadImageTexture(getDisplayUrl(saved.url));
-    imageMap.set(saved.id, { url: saved.url, texture });
-    createFloatingImage(texture, saved.id);
+    imageMap.set(saved.id, { url: saved.url, texture }); createFloatingImage(texture, saved.id);
     renderImageGrid(); renderMobileImageGrid();
   } catch (err) { alert('Lỗi: ' + err.message); }
 }
 
 async function removeImage(dbId) {
-  const item = imageMap.get(dbId);
-  if (!item) return;
+  const item = imageMap.get(dbId); if (!item) return;
   item.texture.dispose();
   const meshIdx = floatingImages.findIndex(m => m.userData.dbId === dbId);
-  if (meshIdx >= 0) {
-    const mesh = floatingImages[meshIdx];
-    mesh.geometry.dispose(); mesh.material.dispose(); scene.remove(mesh);
-    floatingImages.splice(meshIdx, 1);
-  }
+  if (meshIdx >= 0) { const m = floatingImages[meshIdx]; m.geometry.dispose(); m.material.dispose(); scene.remove(m); floatingImages.splice(meshIdx, 1); }
   imageMap.delete(dbId);
   await apiDelete('/api/images/' + dbId);
   renderImageGrid(); renderMobileImageGrid();
 }
 
 function showFullscreen(url) {
-  const existing = document.getElementById('imageModal');
-  if (existing) existing.remove();
-  const modal = document.createElement('div');
-  modal.id = 'imageModal';
+  const existing = document.getElementById('imageModal'); if (existing) existing.remove();
+  const modal = document.createElement('div'); modal.id = 'imageModal';
   modal.innerHTML = `<div class="close-modal">✕</div><img src="${url}">`;
   modal.addEventListener('click', (e) => { if (e.target === modal || e.target.classList.contains('close-modal')) modal.remove(); });
   document.body.appendChild(modal);
 }
 
-function loadImageTexture(url) {
-  return new Promise((resolve, reject) => {
-    new THREE.TextureLoader().load(url,
-      (t) => { t.colorSpace = THREE.SRGBColorSpace; resolve(t); },
-      undefined, () => reject(new Error('Failed: ' + url))
-    );
-  });
-}
-
-// Upload handler
 document.getElementById('imageUpload').addEventListener('change', async (e) => {
   for (const file of e.target.files) {
     try {
-      const saved = await apiUpload(file);
-      if (saved.error) { alert(saved.error); continue; }
+      const saved = await apiUpload(file); if (saved.error) { alert(saved.error); continue; }
       const texture = await loadImageTexture(getDisplayUrl(saved.url));
-      imageMap.set(saved.id, { url: saved.url, texture });
-      createFloatingImage(texture, saved.id);
+      imageMap.set(saved.id, { url: saved.url, texture }); createFloatingImage(texture, saved.id);
     } catch (_) {}
   }
   renderImageGrid(); renderMobileImageGrid(); e.target.value = '';
 });
 
-document.getElementById('addImage').addEventListener('click', () => {
-  const inp = document.getElementById('imageUrl'); addImage(inp.value); inp.value = '';
-});
-document.getElementById('imageUrl').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') { addImage(e.target.value); e.target.value = ''; }
-});
+document.getElementById('addImage').addEventListener('click', () => { const inp = document.getElementById('imageUrl'); addImage(inp.value); inp.value = ''; });
+document.getElementById('imageUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') { addImage(e.target.value); e.target.value = ''; } });
 
 // ═══════════════════════════════════════════════════════
 // CONTROLS
@@ -615,8 +484,9 @@ function rebuildGalaxy() {
   document.getElementById('spiralVal').textContent = spiral;
   document.getElementById('countVal').textContent = (count / 1000).toFixed(0) + 'K';
   document.getElementById('speedVal').textContent = parseFloat(speedSlider.value);
-  createGalaxyMesh(generateGalaxy(count, arms, spiral));
-  createDustMesh(generateDust(Math.floor(count * 0.4), arms, spiral));
+  createGalaxyMesh(generateCleanSpiral(count, arms, spiral));
+  createDustMeshFn(generateDustBands(Math.floor(count * 0.5), arms, spiral));
+  createNebulaMesh(generateNebulaClouds(Math.floor(count * 0.15), arms, spiral));
 }
 
 armsSlider.addEventListener('input', rebuildGalaxy);
@@ -624,88 +494,53 @@ spiralSlider.addEventListener('input', rebuildGalaxy);
 countSlider.addEventListener('input', rebuildGalaxy);
 speedSlider.addEventListener('input', () => { document.getElementById('speedVal').textContent = parseFloat(speedSlider.value); });
 
-document.getElementById('resetBtn').addEventListener('click', () => { camera.position.set(0, 10, 24); controls.target.set(0, 0, 0); controls.update(); });
+document.getElementById('resetBtn').addEventListener('click', () => { camera.position.set(0, 14, 22); controls.target.set(0, 0, 0); controls.update(); });
 document.getElementById('autoRotateBtn').addEventListener('click', () => {
   controls.autoRotate = !controls.autoRotate;
   document.getElementById('autoRotateBtn').textContent = controls.autoRotate ? '⏸ Dừng xoay' : '▶ Tự động xoay';
 });
 
-// ── Raycaster ────────────────────────────────────────
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-renderer.domElement.addEventListener('click', (event) => {
-  mouse.x = (event.clientX / container.clientWidth) * 2 - 1;
-  mouse.y = -(event.clientY / container.clientHeight) * 2 + 1;
-  raycaster.setFromCamera(mouse, camera);
+// Raycaster
+const raycaster = new THREE.Raycaster(); const mousePos = new THREE.Vector2();
+renderer.domElement.addEventListener('click', (e) => {
+  mousePos.x = (e.clientX / container.clientWidth) * 2 - 1;
+  mousePos.y = -(e.clientY / container.clientHeight) * 2 + 1;
+  raycaster.setFromCamera(mousePos, camera);
   const intersects = raycaster.intersectObjects(floatingImages);
-  if (intersects.length > 0) {
-    const dbId = intersects[0].object.userData.dbId;
-    const item = imageMap.get(dbId);
-    if (item) showFullscreen(getDisplayUrl(item.url));
-  }
+  if (intersects.length > 0) { const dbId = intersects[0].object.userData.dbId; const item = imageMap.get(dbId); if (item) showFullscreen(getDisplayUrl(item.url)); }
 });
 
-// ── Resize ───────────────────────────────────────────
 window.addEventListener('resize', () => {
   camera.aspect = container.clientWidth / container.clientHeight; camera.updateProjectionMatrix();
-  renderer.setSize(container.clientWidth, container.clientHeight);
-  composer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setSize(container.clientWidth, container.clientHeight); composer.setSize(container.clientWidth, container.clientHeight);
 });
 
-// ── Mode badge ───────────────────────────────────────
+// Mode badge
 const modeBadge = document.getElementById('modeBadge');
-function updateModeBadge() {
-  const mobile = window.innerWidth <= 768;
-  modeBadge.textContent = mobile ? '📱 USER' : (authToken ? '🖥 ADMIN' : '🖥 USER');
-}
-updateModeBadge();
-window.addEventListener('resize', updateModeBadge);
+function updateModeBadge() { modeBadge.textContent = window.innerWidth <= 768 ? '📱 USER' : (authToken ? '🖥 ADMIN' : '🖥 USER'); }
+updateModeBadge(); window.addEventListener('resize', updateModeBadge);
 
-// ── Mobile Gallery ───────────────────────────────────
+// Mobile gallery
 function renderMobileImageGrid() {
-  const grid = document.getElementById('mobileImageGrid');
-  if (!grid) return;
-  grid.innerHTML = '';
+  const grid = document.getElementById('mobileImageGrid'); if (!grid) return; grid.innerHTML = '';
   imageMap.forEach((item) => {
-    const card = document.createElement('div');
-    card.className = 'image-card';
+    const card = document.createElement('div'); card.className = 'image-card';
     card.innerHTML = `<img src="${getDisplayUrl(item.url)}" loading="lazy">`;
-    card.addEventListener('click', () => showFullscreen(getDisplayUrl(item.url)));
-    grid.appendChild(card);
+    card.addEventListener('click', () => showFullscreen(getDisplayUrl(item.url))); grid.appendChild(card);
   });
 }
 
-// ── Mobile UI ────────────────────────────────────────
 document.getElementById('mobileGalleryBtn').addEventListener('click', () => document.getElementById('mobileGallery').classList.add('open'));
 document.getElementById('mobileGalleryClose').addEventListener('click', () => document.getElementById('mobileGallery').classList.remove('open'));
-document.getElementById('mobileAutoRotateBtn').addEventListener('click', () => {
-  controls.autoRotate = !controls.autoRotate;
-  document.getElementById('mobileAutoRotateBtn').textContent = controls.autoRotate ? '⏸' : '▶';
-});
-document.getElementById('mobileResetBtn').addEventListener('click', () => { camera.position.set(0, 10, 24); controls.target.set(0, 0, 0); controls.update(); });
+document.getElementById('mobileAutoRotateBtn').addEventListener('click', () => { controls.autoRotate = !controls.autoRotate; document.getElementById('mobileAutoRotateBtn').textContent = controls.autoRotate ? '⏸' : '▶'; });
+document.getElementById('mobileResetBtn').addEventListener('click', () => { camera.position.set(0, 14, 22); controls.target.set(0, 0, 0); controls.update(); });
 document.getElementById('mobileZoomInBtn').addEventListener('click', () => camera.position.multiplyScalar(0.85));
 document.getElementById('mobileZoomOutBtn').addEventListener('click', () => camera.position.multiplyScalar(1.15));
 
-// Pinch zoom
 let lastPinchDist = 0;
-renderer.domElement.addEventListener('touchstart', (e) => {
-  if (e.touches.length === 2) {
-    const dx = e.touches[0].clientX - e.touches[1].clientX;
-    const dy = e.touches[0].clientY - e.touches[1].clientY;
-    lastPinchDist = Math.sqrt(dx * dx + dy * dy);
-  }
-}, { passive: true });
-renderer.domElement.addEventListener('touchmove', (e) => {
-  if (e.touches.length === 2) {
-    const dx = e.touches[0].clientX - e.touches[1].clientX;
-    const dy = e.touches[0].clientY - e.touches[1].clientY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    camera.position.multiplyScalar(1 + (lastPinchDist - dist) * 0.002);
-    lastPinchDist = dist;
-  }
-}, { passive: true });
+renderer.domElement.addEventListener('touchstart', (e) => { if (e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX; const dy = e.touches[0].clientY - e.touches[1].clientY; lastPinchDist = Math.sqrt(dx * dx + dy * dy); } }, { passive: true });
+renderer.domElement.addEventListener('touchmove', (e) => { if (e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX; const dy = e.touches[0].clientY - e.touches[1].clientY; const dist = Math.sqrt(dx * dx + dy * dy); camera.position.multiplyScalar(1 + (lastPinchDist - dist) * 0.002); lastPinchDist = dist; } }, { passive: true });
 
-// ── Tooltip fade ─────────────────────────────────────
 setTimeout(() => { const tip = document.getElementById('tooltip'); if (tip) tip.style.opacity = '0'; }, 12000);
 
 // ═══════════════════════════════════════════════════════
@@ -714,10 +549,10 @@ setTimeout(() => { const tip = document.getElementById('tooltip'); if (tip) tip.
 
 createUniverse();
 createHalo();
-createNebulaMesh(generateNebula(3000));
-const initialData = generateGalaxy(15000, 4, 2.5);
-createGalaxyMesh(initialData);
-createDustMesh(generateDust(6000, 4, 2.5));
+const initData = generateCleanSpiral(10000, 4, 2.5);
+createGalaxyMesh(initData);
+createDustMeshFn(generateDustBands(5000, 4, 2.5));
+createNebulaMesh(generateNebulaClouds(1500, 4, 2.5));
 closeImagePanel();
 
 (async () => {
@@ -725,30 +560,19 @@ closeImagePanel();
     const images = await apiGet('/api/images');
     if (images.length > 0) {
       for (const img of images) {
-        try {
-          const texture = await loadImageTexture(getDisplayUrl(img.url));
-          imageMap.set(img.id, { url: img.url, texture });
-          createFloatingImage(texture, img.id);
-        } catch (_) {}
+        try { const t = await loadImageTexture(getDisplayUrl(img.url)); imageMap.set(img.id, { url: img.url, texture: t }); createFloatingImage(t, img.id); } catch (_) {}
       }
     } else {
       for (const url of defaultImages) {
         try {
           const saved = authToken ? await apiPost('/api/images', { url }) : { id: 'local-' + Math.random().toString(36).slice(2), url };
-          const texture = await loadImageTexture(url);
-          imageMap.set(saved.id, { url: saved.url || url, texture });
-          createFloatingImage(texture, saved.id);
+          const t = await loadImageTexture(url); imageMap.set(saved.id, { url: saved.url || url, texture: t }); createFloatingImage(t, saved.id);
         } catch (_) {}
       }
     }
   } catch (_) {
     for (const url of defaultImages) {
-      try {
-        const texture = await loadImageTexture(url);
-        const fakeId = 'local-' + Math.random().toString(36).slice(2);
-        imageMap.set(fakeId, { url, texture });
-        createFloatingImage(texture, fakeId);
-      } catch (_) {}
+      try { const t = await loadImageTexture(url); const fid = 'local-' + Math.random().toString(36).slice(2); imageMap.set(fid, { url, texture: t }); createFloatingImage(t, fid); } catch (_) {}
     }
   }
   renderImageGrid(); renderMobileImageGrid();
@@ -764,7 +588,6 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.1);
   const time = performance.now() * 0.001;
-
   controls.update();
   const speed = parseFloat(speedSlider.value);
 
@@ -776,13 +599,13 @@ function animate() {
     mesh.lookAt(0, mesh.userData.orbitHeight * 0.5, 0);
   });
 
-  coreGlow.material.uniforms.uTime.value = time;
-  disk.material.uniforms.uTime.value = time;
-  core.rotation.y += 0.08 * dt;
+  coreGlowMat.uniforms.uTime.value = time;
+  innerDiskMat.uniforms.uTime.value = time;
+  coreMesh.rotation.y += 0.06 * dt;
 
-  if (galaxyStars) galaxyStars.rotation.y += speed * 0.08 * dt;
-  if (dustLanes) dustLanes.rotation.y += speed * 0.08 * dt;
-  if (nebulaParticles) nebulaParticles.rotation.y += speed * 0.06 * dt;
+  if (galaxyStars) galaxyStars.rotation.y += speed * 0.06 * dt;
+  if (dustMesh) dustMesh.rotation.y += speed * 0.06 * dt;
+  if (nebula) nebula.rotation.y += speed * 0.05 * dt;
 
   composer.render();
 }
