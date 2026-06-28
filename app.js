@@ -410,10 +410,31 @@ renderer.domElement.addEventListener('mousemove', e => {
   mouse.x = (e.clientX / innerWidth) * 2 - 1;
   mouse.y = -(e.clientY / innerHeight) * 2 + 1;
 });
+
+// Fullscreen modal for images
+const imgModal = document.createElement('div');
+imgModal.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.92);display:none;align-items:center;justify-content:center;cursor:pointer;';
+imgModal.innerHTML = '<button id=imgClose style="position:absolute;top:20px;right:20px;z-index:201;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.5);color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button><img id=imgFull style="max-width:90vw;max-height:90vh;border-radius:8px;">';
+document.body.appendChild(imgModal);
+const imgFull = document.getElementById('imgFull');
+document.getElementById('imgClose').addEventListener('click', () => imgModal.style.display = 'none');
+imgModal.addEventListener('click', e => { if (e.target === imgModal) imgModal.style.display = 'none'; });
+
 renderer.domElement.addEventListener('click', e => {
-  mouse.x = (e.clientX / innerWidth) * 2 - 1;
-  mouse.y = -(e.clientY / innerHeight) * 2 + 1;
-  raycaster.setFromCamera(mouse, camera);
+  // Check floating images first
+  const imgMouse = new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  const imgRay = new THREE.Raycaster();
+  imgRay.setFromCamera(imgMouse, camera);
+  const imgHits = imgRay.intersectObjects(fltImages);
+  if (imgHits.length > 0) {
+    const dbId = imgHits[0].object.userData.dbId;
+    const item = imgMap.get(dbId);
+    if (item) { imgFull.src = durl(item.url); imgModal.style.display = 'flex'; }
+    return;
+  }
+  // Then check data clusters
+  const dm = new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  raycaster.setFromCamera(dm, camera);
   const spheres = dataClusters.map(d => d.sphere);
   const hits = raycaster.intersectObjects(spheres);
   if (hits.length > 0) {
@@ -450,8 +471,106 @@ setTimeout(() => {
   if (l) { l.style.transition = 'opacity 0.5s'; l.style.opacity = '0'; setTimeout(() => l.remove(), 500); }
 }, 4000);
 
+
+
+// ── API Helpers ──────────────────────────────
+const API = location.origin;
+let authToken = null;
+function ah() { return authToken ? { 'Authorization': 'Bearer ' + authToken } : {}; }
+async function ag(p) { return (await fetch(API + p)).json(); }
+async function ap(p, b) { const r = await fetch(API + p, { method: 'POST', headers: { 'Content-Type': 'application/json', ...ah() }, body: JSON.stringify(b) }); return r.json(); }
+async function ad(p) { await fetch(API + p, { method: 'DELETE', headers: ah() }); }
+async function au(file) { const f = new FormData(); f.append('image', file); const r = await fetch(API + '/api/images/upload', { method: 'POST', headers: ah(), body: f }); return r.json(); }
+
+// ── Floating Images ─────────────────────────
+const fltImages = [];
+
+function loadTex(url) {
+  return new Promise((res, rej) => new THREE.TextureLoader().load(url, t => { t.colorSpace = THREE.SRGBColorSpace; res(t); }, undefined, () => rej()));
+}
+
+function addFloatingImg(texture, dbId) {
+  const asp = texture.image ? texture.image.width / texture.image.height : 1;
+  const w = 2.8, h = w / asp;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true, depthWrite: false }));
+  const a = Math.random() * 6.28, r = 17 + Math.random() * 12, y = (Math.random() - 0.5) * 10;
+  m.position.set(Math.cos(a) * r, y, Math.sin(a) * r);
+  m.lookAt(0, 0, 0);
+  m.userData = { dbId, orbitR: r, orbitA: a, orbitY: y, spd: 0.01 + Math.random() * 0.03 };
+  scene.add(m);
+  fltImages.push(m);
+}
+
+const defImgs = [
+  'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=400',
+  'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=400',
+  'https://images.unsplash.com/photo-1464802686167-b939a6910659?w=400',
+  'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400',
+  'https://images.unsplash.com/photo-1506703719100-b0a86c48d3b5?w=400',
+  'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400',
+];
+
+const imgMap = new Map();
+function durl(u) { return u.startsWith('/') ? API + u : u; }
+
+// Load images on startup
+(async () => {
+  try {
+    const imgs = await ag('/api/images');
+    if (imgs.length > 0) {
+      for (const img of imgs) {
+        try { const t = await loadTex(durl(img.url)); imgMap.set(img.id, { url: img.url, tex: t }); addFloatingImg(t, img.id); } catch(e) {}
+      }
+    } else {
+      for (const url of defImgs) {
+        try {
+          const sv = authToken ? await ap('/api/images', { url }) : { id: 'l-' + Math.random().toString(36).slice(2), url };
+          const t = await loadTex(url); imgMap.set(sv.id, { url: sv.url || url, tex: t }); addFloatingImg(t, sv.id);
+        } catch(e) {}
+      }
+    }
+  } catch(e) {
+    for (const url of defImgs) {
+      try { const t = await loadTex(url); const fid = 'l-' + Math.random().toString(36).slice(2); imgMap.set(fid, { url, tex: t }); addFloatingImg(t, fid); } catch(e) {}
+    }
+  }
+})();
+
+// Simple auth (stored in localStorage)
+const storedToken = localStorage.getItem('glx_token');
+if (storedToken) {
+  fetch(API + '/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: storedToken }) })
+    .then(r => { if (r.ok) authToken = storedToken; else localStorage.removeItem('glx_token'); })
+    .catch(() => {});
+}
+
+// Upload via URL prompt (simple)
+window.addEventListener('keydown', e => {
+  if (e.key === 'u' && e.ctrlKey && authToken) {
+    const url = prompt('Paste image URL:');
+    if (url && url.trim()) {
+      ap('/api/images', { url: url.trim() }).then(async sv => {
+        if (sv.error) { alert(sv.error); return; }
+        const t = await loadTex(durl(sv.url));
+        imgMap.set(sv.id, { url: sv.url, tex: t }); addFloatingImg(t, sv.id);
+      }).catch(e => {});
+    }
+  }
+});
+// Login: Ctrl+L
+window.addEventListener('keydown', e => {
+  if (e.key === 'l' && e.ctrlKey) {
+    const pw = prompt('Admin password:');
+    if (pw) {
+      fetch(API + '/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) })
+        .then(r => { if (r.ok) { authToken = pw; localStorage.setItem('glx_token', pw); alert('Admin unlocked! Ctrl+U to upload.'); } else alert('Wrong password!'); })
+        .catch(() => alert('Connection failed'));
+    }
+  }
+});
+
 // ═══════════════════════════════════════════════════════
-// 9. ANIMATION LOOP
+// ANIMATION LOOP
 // ═══════════════════════════════════════════════════════
 const clock = new THREE.Clock();
 
@@ -461,6 +580,16 @@ function animate() {
   const time = performance.now() * 0.001;
 
   controls.update();
+
+  // Orbit floating images
+  fltImages.forEach(m => {
+    m.userData.orbitA += m.userData.spd * dt;
+    m.position.x = Math.cos(m.userData.orbitA) * m.userData.orbitR;
+    m.position.z = Math.sin(m.userData.orbitA) * m.userData.orbitR;
+    m.position.y = m.userData.orbitY;
+    m.lookAt(0, m.userData.orbitY * 0.3, 0);
+  });
+
 
   // Core glow pulse
   glowSphere.material.uniforms.uTime.value = time;
@@ -511,7 +640,8 @@ function animate() {
 
   // Tooltip follow (not clicked, just hover)
   if (tooltip.style.opacity !== '1') {
-    raycaster.setFromCamera(mouse, camera);
+    const fm = new THREE.Vector2(mouse.x, mouse.y);
+    raycaster.setFromCamera(fm, camera);
     const spheres = dataClusters.map(d => d.sphere);
     const hits = raycaster.intersectObjects(spheres);
     if (hits.length > 0) {
