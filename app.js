@@ -62,27 +62,43 @@ coreGroup.add(corePoint);
 
 // Crystal glow shell
 const glowSphere = new THREE.Mesh(
-  new THREE.SphereGeometry(2.0, 48, 48),
+  new THREE.SphereGeometry(2.5, 64, 64),
   new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 } },
-    vertexShader: `varying vec3 vN,vP;void main(){vec4 w=modelMatrix*vec4(position,1.);vP=w.xyz;vN=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-    fragmentShader: `varying vec3 vN,vP;uniform float uTime;void main(){vec3 vd=normalize(cameraPosition-vP);float f=1.-abs(dot(vd,vN));f=pow(f,4.0);float p=.9+.1*sin(uTime*1.2);vec3 c=mix(vec3(0.4,0.7,1.0),vec3(1.0,0.9,0.8),f)*p;gl_FragColor=vec4(c,f*.3);}`,
+    vertexShader: `varying vec3 vN,vP;varying float vR;void main(){vec4 w=modelMatrix*vec4(position,1.);vP=w.xyz;vN=normalize(mat3(modelMatrix)*normal);vR=length(position.xy)/2.5;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader: `varying vec3 vN,vP;varying float vR;uniform float uTime;void main(){vec3 vd=normalize(cameraPosition-vP);float f=1.-abs(dot(vd,vN));f=pow(f,3.5);float p=.92+.08*sin(uTime*1.1);float h=sin(vR*8.0+uTime*0.5)*0.5+0.5;vec3 c;c=0.5+0.5*cos(6.28319*(h+vec3(0.0,0.33,0.67)));c=mix(c,vec3(1.0,0.95,0.9),1.0-vR)*p;gl_FragColor=vec4(c,f*.35);}`,
     transparent: true, depthWrite: false, side: THREE.DoubleSide
   })
 );
 coreGroup.add(glowSphere);
 
-// Neon data rings around core
-for (let i = 0; i < 3; i++) {
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.8 + i * 0.6, 1.0 + i * 0.6, 64),
-    new THREE.MeshBasicMaterial({
-      color: i === 0 ? 0x4488ff : i === 1 ? 0xff4488 : 0x88ff44,
-      transparent: true, opacity: 0.15 + i * 0.05, side: THREE.DoubleSide, depthWrite: false
-    })
-  );
-  ring.rotation.x = Math.PI * (0.3 + i * 0.05);
-  ring.userData = { speed: 0.8 + i * 0.4, tilt: 0.3 + i * 0.05 };
+// Wavy multicolor data rings
+const ringColors = [0x4488ff, 0xff4488, 0x44ff88, 0xffaa44, 0x8844ff, 0x44ddff];
+for (let i = 0; i < 6; i++) {
+  const radius = 0.8 + i * 0.45;
+  const segments = 64;
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(segments * 3), col = new Float32Array(segments * 3);
+  for (let j = 0; j < segments; j++) {
+    const a = (j / segments) * Math.PI * 2;
+    const wave = Math.sin(a * 3 + i * 1.2) * 0.08 * (0.5 + i * 0.15);
+    pos[j * 3] = Math.cos(a) * (radius + wave);
+    pos[j * 3 + 1] = Math.sin(a * 2 + i) * 0.05 + wave * 0.3;
+    pos[j * 3 + 2] = Math.sin(a) * (radius + wave);
+    const rc = new THREE.Color(ringColors[i % ringColors.length]);
+    const rc2 = new THREE.Color(ringColors[(i + 2) % ringColors.length]);
+    const rc3 = rc.clone().lerp(rc2, j / segments);
+    col[j * 3] = rc3.r; col[j * 3 + 1] = rc3.g; col[j * 3 + 2] = rc3.b;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const mat = new THREE.PointsMaterial({
+    size: 0.05, vertexColors: true, blending: THREE.AdditiveBlending,
+    transparent: true, opacity: 0.3 + i * 0.05, depthWrite: false
+  });
+  const ring = new THREE.Points(geo, mat);
+  ring.rotation.x = Math.PI * (0.2 + i * 0.04);
+  ring.userData = { speed: 0.6 + i * 0.3, tilt: 0.2 + i * 0.04, wavePhase: 0 };
   coreGroup.add(ring);
 }
 
@@ -596,9 +612,10 @@ function animate() {
 
   // Rotate data rings
   coreGroup.children.forEach(child => {
-    if (child.isMesh && child.geometry.type === 'RingGeometry') {
-      child.rotation.z += child.userData.speed * dt;
-      child.rotation.x = Math.PI * child.userData.tilt + Math.sin(time * 0.3 + child.userData.speed) * 0.1;
+    if (child.isPoints && child.userData.speed) {
+      child.userData.wavePhase += dt * child.userData.speed * 0.5;
+      child.rotation.z += child.userData.speed * dt * 0.3;
+      child.rotation.x = Math.PI * child.userData.tilt + Math.sin(time * 0.2 + child.userData.speed) * 0.15;
     }
   });
 
