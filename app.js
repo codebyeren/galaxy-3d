@@ -111,21 +111,19 @@ function makeArms(count) {
   for (let i = 0; i < count; i++) {
     const arm = i % 2;
     const t = (i - arm) / count * 2;
-    const r = 1.5 + Math.pow(t, 0.65) * 17;
-    const angle = arm * Math.PI + r * 1.9 + t * 0.35;
-    // More scatter = thicker arm
-    const scatter = (Math.random() - 0.5) * (0.35 + t * 0.7);
-    const rad = r + (Math.random() - 0.5) * 0.2;
+    const r = 0.8 + Math.pow(t, 0.6) * 8.5;
+    const angle = arm * Math.PI + r * 2.2 + t * 0.4;
+    const scatter = (Math.random() - 0.5) * (0.3 + t * 0.5);
+    const rad = r + (Math.random() - 0.5) * 0.15;
     p[i * 3] = Math.cos(angle + scatter) * rad * 1.5;
-    p[i * 3 + 1] = (Math.random() - 0.5) * (0.1 + t * 0.25);
+    p[i * 3 + 1] = (Math.random() - 0.5) * (0.2 + t * 0.5);
     p[i * 3 + 2] = Math.sin(angle + scatter) * rad;
 
-    // Rainbow gradient: cycle through hues along the arm
-    // Core: warm pink → mid: cyan/green → outer: blue/purple
-    const hue = (t * 0.7 + arm * 0.3 + 0.05) % 1.0;
-    const sat = 0.5 + 0.3 * Math.sin(t * 8);
-    const lig = 0.6 + 0.35 * Math.sin(t * 5 + arm * 2);
-    const col = new THREE.Color().setHSL(hue, sat, lig);
+    // Random color within warm-to-cool range
+    const hue = 0.0 + Math.random() * 0.7 + arm * 0.05;
+    const sat = 0.3 + Math.random() * 0.5;
+    const lig = 0.5 + Math.random() * 0.4;
+    const col = new THREE.Color().setHSL(hue % 1.0, sat, lig);
     c[i * 3] = col.r; c[i * 3 + 1] = col.g; c[i * 3 + 2] = col.b;
     s[i] = (0.3 + t * 0.3) * (0.4 + Math.random() * 0.6);
   }
@@ -140,7 +138,7 @@ function renderArms(data) {
   g.setAttribute('color', new THREE.BufferAttribute(data.col, 3));
   g.setAttribute('size', new THREE.BufferAttribute(data.siz, 1));
   armParticles = new THREE.Points(g, new THREE.PointsMaterial({
-    size: 0.14, vertexColors: true, blending: THREE.AdditiveBlending,
+    size: 0.14, map: circleTex, vertexColors: true, blending: THREE.AdditiveBlending,
     depthWrite: false, transparent: true, opacity: 0.95, sizeAttenuation: true
   }));
   scene.add(armParticles);
@@ -492,7 +490,20 @@ if (bgAudio && musicBtn) {
 
 // ═══════════════════════════════════════════════════════
 // 8. INIT
-renderArms(makeArms(45000));  // denser
+// Create circle texture for round stars
+const circleCanvas = document.createElement('canvas');
+circleCanvas.width = 32; circleCanvas.height = 32;
+const ctx = circleCanvas.getContext('2d');
+const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+g.addColorStop(0, 'rgba(255,255,255,1)');
+g.addColorStop(0.3, 'rgba(255,255,255,0.7)');
+g.addColorStop(0.7, 'rgba(255,255,255,0.2)');
+g.addColorStop(1, 'rgba(255,255,255,0)');
+ctx.fillStyle = g;
+ctx.fillRect(0, 0, 32, 32);
+const circleTex = new THREE.CanvasTexture(circleCanvas);
+
+renderArms(makeArms(45000));
 createDataClusters();
 
 // Hide loading
