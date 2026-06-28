@@ -472,9 +472,26 @@ window.addEventListener('resize', () => {
   labelRenderer.setSize(innerWidth, innerHeight);
 });
 
+// ── Music Player ──────────────────────────────
+const bgAudio = document.getElementById('bgAudio');
+const musicBtn = document.getElementById('musicToggle');
+let musicOn = false;
+if (bgAudio && musicBtn) {
+  bgAudio.volume = 0.25;
+  musicBtn.addEventListener('click', () => {
+    if (musicOn) { bgAudio.pause(); musicBtn.textContent = '🔇'; }
+    else { bgAudio.play().catch(() => {}); musicBtn.textContent = '🔊'; }
+    musicOn = !musicOn;
+  });
+  function startMusic() {
+    if (!musicOn) { bgAudio.play().catch(() => {}); musicOn = true; musicBtn.textContent = '🔊'; }
+    ['click','touchstart','keydown'].forEach(e => document.removeEventListener(e, startMusic));
+  }
+  ['click','touchstart','keydown'].forEach(e => document.addEventListener(e, startMusic, { once: true }));
+}
+
 // ═══════════════════════════════════════════════════════
 // 8. INIT
-// ═══════════════════════════════════════════════════════
 renderArms(makeArms(25000));
 createDataClusters();
 
