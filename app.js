@@ -107,25 +107,27 @@ for (let i = 0; i < 6; i++) {
 // ═══════════════════════════════════════════════════════
 function makeArms(count) {
   const p = new Float32Array(count * 3), c = new Float32Array(count * 3), s = new Float32Array(count);
-  // M51 has 2 major arms. We generate 2 tight logarithmic spirals
+  // 2 arms, rainbow gradient along each
   for (let i = 0; i < count; i++) {
     const arm = i % 2;
-    const t = (i - arm) / count * 2; // 0..1 along arm
-    const r = 1.8 + Math.pow(t, 0.7) * 16;
-    const angle = arm * Math.PI + r * 1.8 + t * 0.3;
-    const scatter = (Math.random() - 0.5) * (0.1 + t * 0.25);
-    const rad = r + (Math.random() - 0.5) * 0.15;
+    const t = (i - arm) / count * 2;
+    const r = 1.5 + Math.pow(t, 0.65) * 17;
+    const angle = arm * Math.PI + r * 1.9 + t * 0.35;
+    // More scatter = thicker arm
+    const scatter = (Math.random() - 0.5) * (0.15 + t * 0.35);
+    const rad = r + (Math.random() - 0.5) * 0.2;
     p[i * 3] = Math.cos(angle + scatter) * rad;
-    p[i * 3 + 1] = (Math.random() - 0.5) * (0.04 + t * 0.12);
+    p[i * 3 + 1] = (Math.random() - 0.5) * (0.05 + t * 0.15);
     p[i * 3 + 2] = Math.sin(angle + scatter) * rad;
 
-    // Neon blue → cyan → white gradient along arm
-    const hue = 0.55 + t * 0.08;
-    const sat = 0.6 - t * 0.3;
-    const lig = 0.7 + t * 0.25;
+    // Rainbow gradient: cycle through hues along the arm
+    // Core: warm pink → mid: cyan/green → outer: blue/purple
+    const hue = (t * 0.7 + arm * 0.3 + 0.05) % 1.0;
+    const sat = 0.5 + 0.3 * Math.sin(t * 8);
+    const lig = 0.6 + 0.35 * Math.sin(t * 5 + arm * 2);
     const col = new THREE.Color().setHSL(hue, sat, lig);
     c[i * 3] = col.r; c[i * 3 + 1] = col.g; c[i * 3 + 2] = col.b;
-    s[i] = (1 - t * 0.4) * (0.3 + Math.random() * 0.5);
+    s[i] = (0.3 + t * 0.3) * (0.4 + Math.random() * 0.6);
   }
   return { pos: p, col: c, siz: s };
 }
@@ -138,15 +140,15 @@ function renderArms(data) {
   g.setAttribute('color', new THREE.BufferAttribute(data.col, 3));
   g.setAttribute('size', new THREE.BufferAttribute(data.siz, 1));
   armParticles = new THREE.Points(g, new THREE.PointsMaterial({
-    size: 0.06, vertexColors: true, blending: THREE.AdditiveBlending,
-    depthWrite: false, transparent: true, opacity: 0.9, sizeAttenuation: true
+    size: 0.08, vertexColors: true, blending: THREE.AdditiveBlending,
+    depthWrite: false, transparent: true, opacity: 0.95, sizeAttenuation: true
   }));
   scene.add(armParticles);
 }
 
 // ── Dust lanes as transparent circuit paths ──────
 const dustGeo = new THREE.BufferGeometry();
-const dcount = 3000;
+const dcount = 8000;
 const dpos = new Float32Array(dcount * 3), dcol = new Float32Array(dcount * 3);
 for (let i = 0; i < dcount; i++) {
   const arm = i % 2;
@@ -473,7 +475,7 @@ window.addEventListener('resize', () => {
 // ═══════════════════════════════════════════════════════
 // 8. INIT
 // ═══════════════════════════════════════════════════════
-renderArms(makeArms(12000));
+renderArms(makeArms(25000));
 createDataClusters();
 
 // Hide loading
