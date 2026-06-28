@@ -74,8 +74,8 @@ coreGroup.add(glowSphere);
 
 // Wavy multicolor data rings
 const ringColors2 = [0x4488ff, 0xff4488, 0x44ff88];
-for (let i = 0; i < 3; i++) {
-  const radius = 1.5 + i * 3.5;
+for (let i = 0; i < 1; i++) {
+  const radius = 1.5;
   const segments = 96;
   const geo = new THREE.BufferGeometry();
   const pos = new Float32Array(segments * 3), col = new Float32Array(segments * 3);
@@ -114,10 +114,10 @@ function makeArms(count) {
     const r = 1.5 + Math.pow(t, 0.65) * 17;
     const angle = arm * Math.PI + r * 1.9 + t * 0.35;
     // More scatter = thicker arm
-    const scatter = (Math.random() - 0.5) * (0.15 + t * 0.35);
+    const scatter = (Math.random() - 0.5) * (0.35 + t * 0.7);
     const rad = r + (Math.random() - 0.5) * 0.2;
-    p[i * 3] = Math.cos(angle + scatter) * rad * 1.5; // elliptical galaxy
-    p[i * 3 + 1] = (Math.random() - 0.5) * (0.05 + t * 0.15);
+    p[i * 3] = Math.cos(angle + scatter) * rad * 1.5;
+    p[i * 3 + 1] = (Math.random() - 0.5) * (0.1 + t * 0.25);
     p[i * 3 + 2] = Math.sin(angle + scatter) * rad;
 
     // Rainbow gradient: cycle through hues along the arm
@@ -140,7 +140,7 @@ function renderArms(data) {
   g.setAttribute('color', new THREE.BufferAttribute(data.col, 3));
   g.setAttribute('size', new THREE.BufferAttribute(data.siz, 1));
   armParticles = new THREE.Points(g, new THREE.PointsMaterial({
-    size: 0.08, vertexColors: true, blending: THREE.AdditiveBlending,
+    size: 0.14, vertexColors: true, blending: THREE.AdditiveBlending,
     depthWrite: false, transparent: true, opacity: 0.95, sizeAttenuation: true
   }));
   scene.add(armParticles);
