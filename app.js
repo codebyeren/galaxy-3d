@@ -119,11 +119,13 @@ function makeArms(count) {
     p[i * 3 + 1] = (Math.random() - 0.5) * (0.2 + t * 0.5);
     p[i * 3 + 2] = Math.sin(angle + scatter) * rad;
 
-    // Random color within warm-to-cool range
-    const hue = 0.0 + Math.random() * 0.7 + arm * 0.05;
-    const sat = 0.3 + Math.random() * 0.5;
-    const lig = 0.5 + Math.random() * 0.4;
-    const col = new THREE.Color().setHSL(hue % 1.0, sat, lig);
+    // Gradient: red → orange → yellow → green → blue → purple along arm
+    const hue = (t * 0.75 + arm * 0.05) % 0.85;
+    // Saturation higher in middle, lower at edges
+    const sat = 0.4 + 0.4 * Math.sin(t * Math.PI);
+    // Brightness higher near core, dimmer at edges
+    const lig = 0.7 - t * 0.3 + Math.random() * 0.15;
+    const col = new THREE.Color().setHSL(hue, sat, lig);
     c[i * 3] = col.r; c[i * 3 + 1] = col.g; c[i * 3 + 2] = col.b;
     s[i] = (0.3 + t * 0.3) * (0.4 + Math.random() * 0.6);
   }
