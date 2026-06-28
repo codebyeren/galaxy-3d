@@ -3,124 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>100,000 Stars - Dải Ngân Hà</title>
+  <title>Galaxy Data Interface</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Loading -->
   <div id="loading">
     <div class="loading-card">
-      <div class="loading-title">Ngân Hà</div>
-      <div class="loading-sub">Dải Ngân Hà · Milky Way</div>
+      <div class="loading-title">DATA SYNTHESIS</div>
+      <div class="loading-sub">Initializing Galaxy Interface...</div>
       <div class="loading-dots"><span></span><span></span><span></span></div>
-      <div class="loading-hint">Nhấn để khám phá</div>
     </div>
   </div>
 
   <div id="container"></div>
 
-  <!-- Top bar -->
   <div id="topBar">
-    <div id="topTitle">Ngân Hà <span>· Milky Way</span></div>
+    <div id="topTitle">NGC 5194 <span>· Whirlpool Galaxy</span></div>
     <div id="topRight">
-      <button id="musicToggle" title="Nhạc nền: Tìm Em">🔊</button>
-      <button id="helpBtn" title="Hướng dẫn">?</button>
+      <button id="musicToggle">🔊</button>
     </div>
   </div>
 
-  <!-- Help overlay -->
-  <div id="helpOverlay" class="overlay hidden">
-    <div class="overlay-bg" id="helpBg"></div>
-    <div class="overlay-content">
-      <button class="overlay-close" id="helpClose">✕</button>
-      <h2>Điều khiển</h2>
-      <div class="help-grid">
-        <div><kbd>Kéo chuột</kbd> Xoay góc nhìn</div>
-        <div><kbd>Cuộn</kbd> Phóng to / thu nhỏ</div>
-        <div><kbd>Chuột phải</kbd> Di chuyển</div>
-        <div><kbd>Chạm 1 ngón</kbd> Xoay (mobile)</div>
-        <div><kbd>Chụm 2 ngón</kbd> Zoom (mobile)</div>
-      </div>
-    </div>
-  </div>
+  <!-- Data tooltip for interactive clusters -->
+  <div id="tooltip"></div>
 
-  <!-- Color legend -->
-  <div id="colorLegend">
-    <div class="legend-scale">
-      <span class="legend-label">3,840°K</span>
-      <div class="legend-gradient"></div>
-      <span class="legend-label">42,000°K</span>
-    </div>
-    <div class="legend-title">Chỉ số màu sao B-V</div>
-  </div>
-
-  <!-- Admin panel (slide from right) -->
-  <div id="adminPanel" class="slide-panel right hidden">
-    <div class="panel-inner">
-      <div class="panel-handle"></div>
-      <h3>⚙️ Điều khiển thiên hà</h3>
-      <div class="ctrl-row">
-        <label>Nhánh xoắn <span id="armsVal">4</span></label>
-        <input type="range" id="arms" min="2" max="8" value="4">
-      </div>
-      <div class="ctrl-row">
-        <label>Độ xoắn <span id="spiralVal">2.5</span></label>
-        <input type="range" id="spiral" min="1" max="5" value="2.5" step="0.1">
-      </div>
-      <div class="ctrl-row">
-        <label>Số sao <span id="countVal">10K</span></label>
-        <input type="range" id="count" min="5000" max="40000" value="10000" step="1000">
-      </div>
-      <div class="ctrl-row">
-        <label>Tốc độ <span id="speedVal">0.2</span></label>
-        <input type="range" id="speed" min="0" max="2" value="0.2" step="0.05">
-      </div>
-      <div class="ctrl-buttons">
-        <button id="resetBtn">🔄 Reset</button>
-        <button id="autoRotateBtn">⏸ Dừng</button>
-        <button id="toggleImagesBtn">🖼 Ảnh</button>
-      </div>
-
-      <hr>
-
-      <h3>📷 Quản lý ảnh</h3>
-      <div id="imageGrid"></div>
-      <div class="add-image-row">
-        <input type="text" id="imageUrl" placeholder="Dán URL ảnh...">
-        <button id="addImage">+</button>
-        <label class="upload-btn">📁<input type="file" id="imageUpload" accept="image/*" multiple hidden></label>
-      </div>
-
-      <hr>
-
-      <h3>🔐 Admin</h3>
-      <div id="authSection">
-        <input type="password" id="authPassword" placeholder="Mật khẩu admin">
-        <button id="authSubmit">Mở khóa</button>
-        <button id="authSkip">User</button>
-        <div id="authError"></div>
-      </div>
-    </div>
-    <button id="adminToggle" title="Admin Panel">⚙</button>
-  </div>
-
-  <!-- Gallery panel (slide from left, mobile) -->
-  <div id="galleryPanel" class="slide-panel left hidden">
-    <div class="panel-inner">
-      <div class="panel-handle"></div>
-      <h3>📷 Ảnh vũ trụ</h3>
-      <div id="mobileImageGrid"></div>
-    </div>
-    <button id="galleryToggle" title="Gallery">📷</button>
-  </div>
-
-  <!-- Image fullscreen modal -->
-  <div id="imageModal" class="fullscreen-modal hidden">
-    <button class="modal-close">✕</button>
-    <img src="" alt="">
-  </div>
-
-  <!-- Audio player (hidden) -->
   <audio id="bgAudio" src="tim-em.m4a" loop preload="auto"></audio>
 
   <script type="importmap">

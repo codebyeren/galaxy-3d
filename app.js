@@ -1,560 +1,531 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
-// ── Scene ─────────────────────────────────────────
 const container = document.getElementById('container');
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.3, 200);
-camera.position.set(0, 14, 22);
+
+// ── Cameras & Renderers ────────────────────────────
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 500);
+camera.position.set(8, 5, 20);
+
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0;
+renderer.toneMappingExposure = 1.5;
 container.appendChild(renderer.domElement);
 
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(innerWidth, innerHeight);
+labelRenderer.domElement.style.position = 'absolute';
+labelRenderer.domElement.style.top = '0';
+labelRenderer.domElement.style.pointerEvents = 'none';
+container.appendChild(labelRenderer.domElement);
+
+// ── Controls ──────────────────────────────────────
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.05;
+controls.autoRotate = true; controls.autoRotateSpeed = 0.15;
+controls.minDistance = 4; controls.maxDistance = 50;
+controls.maxPolarAngle = Math.PI * 0.85;
+controls.target.set(0, 0, 0);
+
+// ── Bloom via simple additive pass ────────────────
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.4, 0.6, 0.9));
+composer.addPass(new UnrealBloomPass(
+  new THREE.Vector2(innerWidth, innerHeight), 0.15, 1.0, 0.92
+));
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; controls.dampingFactor = 0.06;
-controls.autoRotate = true; controls.autoRotateSpeed = 0.2;
-controls.minDistance = 4; controls.maxDistance = 60;
-controls.maxPolarAngle = Math.PI * 0.8;
-controls.target.set(0, 0, 0); controls.update();
-
-scene.add(new THREE.AmbientLight(0x0a0a20, 0.2));
-const coreLight = new THREE.PointLight(0xffddbb, 80, 35, 1.8);
+// ── Lighting ──────────────────────────────────────
+scene.add(new THREE.AmbientLight(0x0a0a20, 0.15));
+const coreLight = new THREE.PointLight(0x88bbff, 80, 50, 1.5);
 coreLight.position.set(0, 0, 0); scene.add(coreLight);
+const warmLight = new THREE.PointLight(0xff6644, 30, 30, 2);
+warmLight.position.set(2, 2, 0); scene.add(warmLight);
 
 // ═══════════════════════════════════════════════════════
-// CORE
+// 1. CRYSTAL NEON GALAXY CORE
 // ═══════════════════════════════════════════════════════
 const coreGroup = new THREE.Group(); scene.add(coreGroup);
-const coreMesh = new THREE.Mesh(new THREE.SphereGeometry(0.55, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-coreGroup.add(coreMesh);
 
-const coreGlowMat = new THREE.ShaderMaterial({
-  uniforms: { uTime: { value: 0 }, uC1: { value: new THREE.Color('#ffe8cc') }, uC2: { value: new THREE.Color('#ff9944') }, uC3: { value: new THREE.Color('#3311aa') } },
-  vertexShader: `varying vec3 vN,vP;void main(){vec4 w=modelMatrix*vec4(position,1.);vP=w.xyz;vN=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-  fragmentShader: `varying vec3 vN,vP;uniform float uTime;uniform vec3 uC1,uC2,uC3;void main(){vec3 vd=normalize(cameraPosition-vP);float f=1.-abs(dot(vd,vN));f=pow(f,2.8);float p=.9+.1*sin(uTime*1.3);float r=length(vP.xz)/2.2;vec3 c=mix(mix(uC1,uC2,f),uC3,r*.5)*p;gl_FragColor=vec4(c,f*.7);}`,
-  transparent: true, depthWrite: false
-});
-coreGroup.add(new THREE.Mesh(new THREE.SphereGeometry(2.2, 32, 32), coreGlowMat));
+// Inner bright point
+const corePoint = new THREE.Mesh(
+  new THREE.SphereGeometry(0.3, 32, 32),
+  new THREE.MeshBasicMaterial({ color: 0xffffff })
+);
+coreGroup.add(corePoint);
 
-const innerDiskMat = new THREE.ShaderMaterial({
-  uniforms: { uTime: { value: 0 } },
-  vertexShader: `varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-  fragmentShader: `varying vec2 vUv;uniform float uTime;void main(){float d=abs(vUv.x-.5)*2.;float a=smoothstep(0.,.12,d)*smoothstep(1.,.65,d);a*=.4+.12*sin(uTime+vUv.x*15.);gl_FragColor=vec4(1.,.82,.45,a*.45);}`,
-  transparent: true, depthWrite: false, side: THREE.DoubleSide
-});
-const innerDisk = new THREE.Mesh(new THREE.RingGeometry(0.4, 3.5, 96), innerDiskMat);
-innerDisk.rotation.x = Math.PI * 0.5; coreGroup.add(innerDisk);
+// Crystal glow shell
+const glowSphere = new THREE.Mesh(
+  new THREE.SphereGeometry(2.0, 48, 48),
+  new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: `varying vec3 vN,vP;void main(){vec4 w=modelMatrix*vec4(position,1.);vP=w.xyz;vN=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader: `varying vec3 vN,vP;uniform float uTime;void main(){vec3 vd=normalize(cameraPosition-vP);float f=1.-abs(dot(vd,vN));f=pow(f,4.0);float p=.9+.1*sin(uTime*1.2);vec3 c=mix(vec3(0.4,0.7,1.0),vec3(1.0,0.9,0.8),f)*p;gl_FragColor=vec4(c,f*.3);}`,
+    transparent: true, depthWrite: false, side: THREE.DoubleSide
+  })
+);
+coreGroup.add(glowSphere);
+
+// Neon data rings around core
+for (let i = 0; i < 3; i++) {
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.8 + i * 0.6, 1.0 + i * 0.6, 64),
+    new THREE.MeshBasicMaterial({
+      color: i === 0 ? 0x4488ff : i === 1 ? 0xff4488 : 0x88ff44,
+      transparent: true, opacity: 0.15 + i * 0.05, side: THREE.DoubleSide, depthWrite: false
+    })
+  );
+  ring.rotation.x = Math.PI * (0.3 + i * 0.05);
+  ring.userData = { speed: 0.8 + i * 0.4, tilt: 0.3 + i * 0.05 };
+  coreGroup.add(ring);
+}
 
 // ═══════════════════════════════════════════════════════
-// SPIRAL ARMS
+// 2. SPIRAL ARMS (M51-style crystal neon highways)
 // ═══════════════════════════════════════════════════════
-function generateCleanSpiral(count, arms, tightness) {
-  const pos = new Float32Array(count * 3), col = new Float32Array(count * 3), siz = new Float32Array(count);
-  const perArm = Math.floor(count / arms);
-  for (let arm = 0; arm < arms; arm++) {
-    const baseAngle = (arm / arms) * Math.PI * 2;
-    for (let j = 0; j < perArm; j++) {
-      const i = arm * perArm + j, t = j / perArm, r = 1.5 + t * 18;
-      const spiral = r * tightness;
-      const scatter = (Math.random() + Math.random() + Math.random()) / 3 - 0.5;
-      const angle = baseAngle + spiral + scatter * (0.15 + t * 0.55);
-      const radius = r + (Math.random() - 0.5) * 0.3;
-      pos[i * 3] = Math.cos(angle) * radius;
-      pos[i * 3 + 1] = (Math.random() - 0.5) * (0.08 + t * 0.25) * (1 - t * 0.7);
-      pos[i * 3 + 2] = Math.sin(angle) * radius;
-      const c = new THREE.Color();
-      if (t < 0.04) c.setHSL(0.14, 0.2, 0.98);
-      else if (t < 0.15) c.setHSL(0.13, 0.4, 0.9 + Math.random() * 0.1);
-      else if (t < 0.4) c.setHSL(0.12, 0.5, 0.7 + Math.random() * 0.28);
-      else if (t < 0.7) c.setHSL(0.58, 0.5, 0.55 + Math.random() * 0.35);
-      else c.setHSL(0.6, 0.4, 0.4 + Math.random() * 0.3);
-      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
-      siz[i] = (1 - t * 0.6) * (Math.random() * 2 + 0.6);
-    }
+function makeArms(count) {
+  const p = new Float32Array(count * 3), c = new Float32Array(count * 3), s = new Float32Array(count);
+  // M51 has 2 major arms. We generate 2 tight logarithmic spirals
+  for (let i = 0; i < count; i++) {
+    const arm = i % 2;
+    const t = (i - arm) / count * 2; // 0..1 along arm
+    const r = 1.8 + Math.pow(t, 0.7) * 16;
+    const angle = arm * Math.PI + r * 1.8 + t * 0.3;
+    const scatter = (Math.random() - 0.5) * (0.1 + t * 0.25);
+    const rad = r + (Math.random() - 0.5) * 0.15;
+    p[i * 3] = Math.cos(angle + scatter) * rad;
+    p[i * 3 + 1] = (Math.random() - 0.5) * (0.04 + t * 0.12);
+    p[i * 3 + 2] = Math.sin(angle + scatter) * rad;
+
+    // Neon blue → cyan → white gradient along arm
+    const hue = 0.55 + t * 0.08;
+    const sat = 0.6 - t * 0.3;
+    const lig = 0.7 + t * 0.25;
+    const col = new THREE.Color().setHSL(hue, sat, lig);
+    c[i * 3] = col.r; c[i * 3 + 1] = col.g; c[i * 3 + 2] = col.b;
+    s[i] = (1 - t * 0.4) * (0.3 + Math.random() * 0.5);
   }
-  return { positions: pos, colors: col, sizes: siz };
+  return { pos: p, col: c, siz: s };
 }
 
-let galaxyStars = null;
-function createGalaxyMesh(data) {
-  if (galaxyStars) scene.remove(galaxyStars);
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(data.positions, 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(data.colors, 3));
-  geo.setAttribute('size', new THREE.BufferAttribute(data.sizes, 1));
-  galaxyStars = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.07, vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.85, sizeAttenuation: true }));
-  scene.add(galaxyStars);
-}
-
-// ═══════════════════════════════════════════════════════
-// DUST
-// ═══════════════════════════════════════════════════════
-let dustMesh = null;
-function generateDustBands(count, arms, tightness) {
-  const pos = new Float32Array(count * 3), col = new Float32Array(count * 3);
-  const perArm = Math.floor(count / arms);
-  for (let arm = 0; arm < arms; arm++) {
-    const baseAngle = (arm / arms) * Math.PI * 2;
-    for (let j = 0; j < perArm; j++) {
-      const i = arm * perArm + j, t = j / perArm, r = 1.2 + t * 17;
-      const angle = baseAngle + r * tightness - 0.25 + ((Math.random() + Math.random()) / 2 - 0.5) * 0.8;
-      pos[i * 3] = Math.cos(angle) * (r + (Math.random() - 0.5) * 0.6);
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 0.15;
-      pos[i * 3 + 2] = Math.sin(angle) * (r + (Math.random() - 0.5) * 0.6);
-      const c = new THREE.Color().setHSL(0.08, 0.2, 0.06 + Math.random() * 0.05);
-      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
-    }
-  }
-  return { positions: pos, colors: col };
-}
-function createDustMeshFn(data) {
-  if (dustMesh) scene.remove(dustMesh);
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(data.positions, 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(data.colors, 3));
-  dustMesh = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.2, vertexColors: true, blending: THREE.NormalBlending, depthWrite: false, transparent: true, opacity: 0.45, sizeAttenuation: true }));
-  scene.add(dustMesh);
-}
-
-// ═══════════════════════════════════════════════════════
-// NEBULA
-// ═══════════════════════════════════════════════════════
-let nebula = null;
-function generateNebulaClouds(count, arms, tightness) {
-  const pos = new Float32Array(count * 3), col = new Float32Array(count * 3);
-  const clouds = [
-    { arm: 0, t: 0.35, color: '#ff6699', spread: 0.4 },
-    { arm: 1, t: 0.55, color: '#6699ff', spread: 0.5 },
-    { arm: 2, t: 0.4, color: '#9966ff', spread: 0.35 },
-    { arm: 3, t: 0.6, color: '#ff8844', spread: 0.45 },
-    { arm: 0, t: 0.7, color: '#44aaff', spread: 0.35 },
-    { arm: 2, t: 0.7, color: '#ff4477', spread: 0.3 },
-  ];
-  const perCloud = Math.floor(count / clouds.length);
-  for (let ci = 0; ci < clouds.length; ci++) {
-    const cloud = clouds[ci], baseAngle = (cloud.arm / arms) * Math.PI * 2;
-    const cR = 1.5 + cloud.t * 18, cA = baseAngle + cR * tightness;
-    for (let j = 0; j < perCloud; j++) {
-      const i = ci * perCloud + j;
-      pos[i * 3] = Math.cos(cA + (Math.random() - 0.5) * cloud.spread) * (cR + (Math.random() - 0.5) * 2.5);
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 1.2;
-      pos[i * 3 + 2] = Math.sin(cA + (Math.random() - 0.5) * cloud.spread) * (cR + (Math.random() - 0.5) * 2.5);
-      const c = new THREE.Color(cloud.color).multiplyScalar(0.5 + Math.random() * 0.5);
-      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
-    }
-  }
-  return { positions: pos, colors: col };
-}
-function createNebulaMesh(data) {
-  if (nebula) scene.remove(nebula);
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(data.positions, 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(data.colors, 3));
-  nebula = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.55, vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.28, sizeAttenuation: true }));
-  scene.add(nebula);
-}
-
-// ═══════════════════════════════════════════════════════
-// HALO
-// ═══════════════════════════════════════════════════════
-function createHalo() {
-  const n = 2500, p = new Float32Array(n * 3), c = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) {
-    const r = 5 + Math.pow(Math.random(), 0.5) * 28, th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
-    p[i * 3] = Math.sin(ph) * Math.cos(th) * r;
-    p[i * 3 + 1] = Math.sin(ph) * Math.sin(th) * r * 0.35;
-    p[i * 3 + 2] = Math.cos(ph) * r;
-    const cl = new THREE.Color().setHSL(0.08, 0.25, 0.2 + Math.random() * 0.2);
-    c[i * 3] = cl.r; c[i * 3 + 1] = cl.g; c[i * 3 + 2] = cl.b;
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(p, 3));
-  g.setAttribute('color', new THREE.BufferAttribute(c, 3));
-  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 0.15, vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.35, sizeAttenuation: true })));
-}
-
-
-
-// --- REALISTIC NEBULA (multi-color like real galaxy) ---
-let nebulaMesh = null;
-function makeNebula(count, arms, tight) {
-  const p = new Float32Array(count * 3), cl = new Float32Array(count * 3);
-  const spots = [
-    [0, 0.25, [1.0, 0.47, 0.67], 0.3, 1.0],
-    [1, 0.4, [1.0, 0.6, 0.27], 0.35, 0.8],
-    [2, 0.5, [0.67, 0.4, 1.0], 0.4, 1.2],
-    [3, 0.6, [0.4, 0.73, 1.0], 0.35, 0.9],
-    [0, 0.7, [1.0, 0.33, 0.6], 0.3, 0.7],
-    [2, 0.35, [1.0, 0.53, 0.33], 0.25, 1.1],
-    [1, 0.65, [0.27, 0.87, 1.0], 0.3, 1.0],
-    [3, 0.3, [0.8, 0.47, 1.0], 0.3, 0.8],
-    [0, 0.5, [1.0, 0.27, 0.53], 0.5, 0.6],
-    [2, 0.75, [0.53, 0.67, 1.0], 0.3, 1.4],
-  ];
-  const nps = Math.floor(count / spots.length);
-  for (let si = 0; si < spots.length; si++) {
-    const sp = spots[si], ba = (sp[0] / arms) * Math.PI * 2;
-    const cr = 1.2 + sp[1] * 18, ca = ba + cr * tight;
-    for (let j = 0; j < nps; j++) {
-      const i = si * nps + j;
-      const r = cr + (Math.random() - 0.5) * 2.5;
-      const a = ca + (Math.random() - 0.5) * sp[3];
-      p[i * 3] = Math.cos(a) * r;
-      p[i * 3 + 1] = (Math.random() - 0.5) * sp[4];
-      p[i * 3 + 2] = Math.sin(a) * r;
-      const m = 0.5 + Math.random() * 0.5;
-      cl[i * 3] = sp[2][0] * m; cl[i * 3 + 1] = sp[2][1] * m; cl[i * 3 + 2] = sp[2][2] * m;
-    }
-  }
-  return { pos: p, col: cl };
-}
-function showNebula(data) {
-  if (nebulaMesh) scene.remove(nebulaMesh);
+let armParticles = null;
+function renderArms(data) {
+  if (armParticles) scene.remove(armParticles);
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(data.pos, 3));
   g.setAttribute('color', new THREE.BufferAttribute(data.col, 3));
-  nebulaMesh = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.6, vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.35, sizeAttenuation: true }));
-  scene.add(nebulaMesh);
+  g.setAttribute('size', new THREE.BufferAttribute(data.siz, 1));
+  armParticles = new THREE.Points(g, new THREE.PointsMaterial({
+    size: 0.06, vertexColors: true, blending: THREE.AdditiveBlending,
+    depthWrite: false, transparent: true, opacity: 0.9, sizeAttenuation: true
+  }));
+  scene.add(armParticles);
 }
 
-// ═══════════════════════════════════════════════════════
-// UNIVERSE
-// ═══════════════════════════════════════════════════════
-function createUniverse() {
-  const n = 3500, p = new Float32Array(n * 3), c = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) {
-    const r = 55 + Math.random() * 50, th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
-    p[i * 3] = Math.sin(ph) * Math.cos(th) * r;
-    p[i * 3 + 1] = Math.sin(ph) * Math.sin(th) * r;
-    p[i * 3 + 2] = Math.cos(ph) * r;
-    const cl = new THREE.Color().setHSL(0.55 + Math.random() * 0.25, 0.3, 0.35 + Math.random() * 0.55);
-    c[i * 3] = cl.r; c[i * 3 + 1] = cl.g; c[i * 3 + 2] = cl.b;
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(p, 3));
-  g.setAttribute('color', new THREE.BufferAttribute(c, 3));
-  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 0.2, vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })));
-  for (let gi = 0; gi < 6; gi++) {
-    const gn = 150, gp = new Float32Array(gn * 3), gc = new Float32Array(gn * 3);
-    const cx = (Math.random() - 0.5) * 70, cy = (Math.random() - 0.5) * 35, cz = (Math.random() - 0.5) * 70;
-    for (let i = 0; i < gn; i++) {
-      const gr = Math.random() * 2.5, ga = Math.random() * Math.PI * 2;
-      gp[i * 3] = cx + Math.cos(ga) * gr; gp[i * 3 + 1] = cy + (Math.random() - 0.5) * 0.25; gp[i * 3 + 2] = cz + Math.sin(ga) * gr;
-      const gcl = new THREE.Color().setHSL(0.5 + Math.random() * 0.2, 0.35, 0.25 + Math.random() * 0.35);
-      gc[i * 3] = gcl.r; gc[i * 3 + 1] = gcl.g; gc[i * 3 + 2] = gcl.b;
-    }
-    const gg = new THREE.BufferGeometry();
-    gg.setAttribute('position', new THREE.BufferAttribute(gp, 3));
-    gg.setAttribute('color', new THREE.BufferAttribute(gc, 3));
-    scene.add(new THREE.Points(gg, new THREE.PointsMaterial({ size: 0.1, vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })));
-  }
+// ── Dust lanes as transparent circuit paths ──────
+const dustGeo = new THREE.BufferGeometry();
+const dcount = 3000;
+const dpos = new Float32Array(dcount * 3), dcol = new Float32Array(dcount * 3);
+for (let i = 0; i < dcount; i++) {
+  const arm = i % 2;
+  const t = ((i - arm) / dcount) * 2;
+  const r = 1.5 + Math.pow(t, 0.7) * 15;
+  const angle = arm * Math.PI + r * 1.8 + t * 0.3 + 0.4;
+  const rad = r + (Math.random() - 0.5) * 0.3;
+  dpos[i * 3] = Math.cos(angle) * rad;
+  dpos[i * 3 + 1] = (Math.random() - 0.5) * 0.08;
+  dpos[i * 3 + 2] = Math.sin(angle) * rad;
+  const col = new THREE.Color().setHSL(0.65, 0.1, 0.03 + Math.random() * 0.04);
+  dcol[i * 3] = col.r; dcol[i * 3 + 1] = col.g; dcol[i * 3 + 2] = col.b;
 }
+dustGeo.setAttribute('position', new THREE.BufferAttribute(dpos, 3));
+dustGeo.setAttribute('color', new THREE.BufferAttribute(dcol, 3));
+const dustMesh = new THREE.Points(dustGeo, new THREE.PointsMaterial({
+  size: 0.15, vertexColors: true, blending: THREE.NormalBlending,
+  depthWrite: false, transparent: true, opacity: 0.25, sizeAttenuation: true
+}));
+scene.add(dustMesh);
 
 // ═══════════════════════════════════════════════════════
-// FLOATING IMAGES
+// 3. DATA CLUSTERS (interactive spheres in arms)
 // ═══════════════════════════════════════════════════════
-const floatingImages = [];
-function createFloatingImage(texture, dbId) {
-  const aspect = texture.image ? texture.image.width / texture.image.height : 1;
-  const w = 3.5, h = w / aspect;
-  const mesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(w, h),
-    new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true, depthWrite: false })
-  );
-  const angle = Math.random() * Math.PI * 2, radius = 22 + Math.random() * 10, height = (Math.random() - 0.5) * 8;
-  mesh.position.set(Math.cos(angle) * radius, height, Math.sin(angle) * radius);
-  mesh.lookAt(0, 0, 0); mesh.rotateY((Math.random() - 0.5) * 0.5);
-  mesh.userData = { dbId, orbitRadius: radius, orbitAngle: angle, orbitHeight: height, orbitSpeed: 0.015 + Math.random() * 0.04 };
-  scene.add(mesh); floatingImages.push(mesh);
-}
-
-function loadImageTexture(url) {
-  return new Promise((resolve, reject) => {
-    new THREE.TextureLoader().load(url, t => { t.colorSpace = THREE.SRGBColorSpace; resolve(t); }, undefined, () => reject(new Error('Failed')));
-  });
-}
-
-// ═══════════════════════════════════════════════════════
-// API + AUTH
-// ═══════════════════════════════════════════════════════
-const API_BASE = location.origin;
-let authToken = null;
-function ah() { return authToken ? { 'Authorization': `Bearer ${authToken}` } : {}; }
-async function apiGet(path) { return (await fetch(API_BASE + path)).json(); }
-async function apiPost(path, body) { return (await fetch(API_BASE + path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...ah() }, body: JSON.stringify(body) })).json(); }
-async function apiDelete(path) { await fetch(API_BASE + path, { method: 'DELETE', headers: ah() }); }
-async function apiUpload(file) { const f = new FormData(); f.append('image', file); return (await fetch(API_BASE + '/api/images/upload', { method: 'POST', headers: ah(), body: f })).json(); }
-
-// ── Auth ─────────────────────────────────────────
-const authPassword = document.getElementById('authPassword');
-const authError = document.getElementById('authError');
-document.getElementById('authSubmit').addEventListener('click', async () => {
-  const pw = authPassword.value;
-  if (!pw) { authError.textContent = 'Nhập mật khẩu'; return; }
-  const r = await fetch(API_BASE + '/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) });
-  if (r.ok) { authToken = pw; localStorage.setItem('galaxy_token', pw); authError.textContent = '✅ Đã mở khóa'; authError.style.color = '#8f8'; }
-  else { authError.textContent = '❌ Sai mật khẩu'; authError.style.color = '#f55'; }
-});
-document.getElementById('authSkip').addEventListener('click', () => { authToken = null; localStorage.removeItem('galaxy_token'); authError.textContent = '👁 Chế độ xem'; authError.style.color = '#888'; });
-authPassword.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('authSubmit').click(); });
-
-const stored = localStorage.getItem('galaxy_token');
-if (stored) {
-  fetch(API_BASE + '/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: stored }) })
-    .then(r => { if (r.ok) { authToken = stored; authError.textContent = '✅ Đã mở khóa'; authError.style.color = '#8f8'; } else { authToken = null; localStorage.removeItem('galaxy_token'); } })
-    .catch(() => {});
-}
-
-// ═══════════════════════════════════════════════════════
-// IMAGES
-// ═══════════════════════════════════════════════════════
-const imageMap = new Map();
-const defaultImages = [
-  'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=400&q=80',
-  'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=400&q=80',
-  'https://images.unsplash.com/photo-1502481851512-e9e2529bfbf9?w=400&q=80',
-  'https://images.unsplash.com/photo-1543722530-d2c3201371e7?w=400&q=80',
-  'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&q=80',
-  'https://images.unsplash.com/photo-1506703719100-b0a86c48d3b5?w=400&q=80',
-  'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&q=80',
+const dataClusters = [];
+const clusterInfos = [
+  { name: 'NGC 5194', temp: 9800, mass: '2.3e6 M☉', age: '420 Myr' },
+  { name: 'Star Nursery α', temp: 12500, mass: '5.1e4 M☉', age: '12 Myr' },
+  { name: 'Pulsar Array ω', temp: 3400, mass: '8.7e3 M☉', age: '1.2 Gyr' },
+  { name: 'Nebula Core γ', temp: 22000, mass: '1.5e5 M☉', age: '85 Myr' },
+  { name: 'Dark Matter Lens', temp: 270, mass: '4.2e8 M☉', age: '13.7 Gyr' },
+  { name: 'Neutron Field β', temp: 560000, mass: '3.1e3 M☉', age: '940 Myr' },
+  { name: 'Gas Giant δ', temp: 1800, mass: '6.3e2 M☉', age: '2.1 Gyr' },
+  { name: 'Exoplanet Belt ε', temp: 4200, mass: '9.8e0 M☉', age: '670 Myr' },
 ];
 
-function gdu(url) { return url.startsWith('/') ? API_BASE + url : url; }
+function createDataClusters() {
+  clusterInfos.forEach((info, idx) => {
+    const t = 0.15 + idx * 0.1;
+    const r = 2.0 + t * 14;
+    const arm = idx % 2;
+    const angle = arm * Math.PI + r * 1.8 + t * 0.3 + (Math.random() - 0.5) * 0.5;
+    const x = Math.cos(angle) * r;
+    const z = Math.sin(angle) * r;
+    const y = (Math.random() - 0.5) * 0.5;
 
-function renderImageGrid() {
-  const grid = document.getElementById('imageGrid');
-  grid.innerHTML = '';
-  imageMap.forEach((item, dbId) => {
-    const card = document.createElement('div'); card.className = 'image-card';
-    card.innerHTML = `<img src="${gdu(item.url)}" loading="lazy"><button class="delete-btn" data-id="${dbId}">✕</button>`;
-    card.addEventListener('click', e => { if (!e.target.classList.contains('delete-btn')) showFullscreen(gdu(item.url)); });
-    card.querySelector('.delete-btn').addEventListener('click', e => { e.stopPropagation(); removeImage(dbId); });
-    grid.appendChild(card);
+    // Glowing sphere
+    const sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(0.12 + Math.random() * 0.08, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xff5588 })
+    );
+    sphere.position.set(x, y, z);
+    sphere.userData = { info, hovered: false, baseY: y, pulsePhase: Math.random() * 6.28 };
+    scene.add(sphere);
+
+    // Outer glow ring
+    const glow = new THREE.Mesh(
+      new THREE.SphereGeometry(0.22, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xff88aa, transparent: true, opacity: 0.2 })
+    );
+    glow.position.copy(sphere.position);
+    scene.add(glow);
+
+    // Label (CSS2D)
+    const labelDiv = document.createElement('div');
+    labelDiv.textContent = info.name;
+    labelDiv.style.color = '#ffaacc';
+    labelDiv.style.fontSize = '10px';
+    labelDiv.style.fontFamily = 'monospace';
+    labelDiv.style.background = 'rgba(0,0,20,0.6)';
+    labelDiv.style.padding = '2px 6px';
+    labelDiv.style.borderRadius = '4px';
+    labelDiv.style.border = '1px solid rgba(255,100,150,0.3)';
+    labelDiv.style.backdropFilter = 'blur(4px)';
+    labelDiv.style.pointerEvents = 'none';
+    labelDiv.style.transition = 'opacity 0.3s';
+    labelDiv.style.opacity = '0.6';
+    const label = new CSS2DObject(labelDiv);
+    label.position.set(x, y - 0.35, z);
+    scene.add(label);
+
+    dataClusters.push({ sphere, glow, label, info, angleR: r, angleA: angle, speed: 0.01 + Math.random() * 0.02 });
   });
 }
 
-function renderMobileImageGrid() {
-  const grid = document.getElementById('mobileImageGrid'); if (!grid) return; grid.innerHTML = '';
-  imageMap.forEach(item => {
-    const card = document.createElement('div'); card.className = 'image-card';
-    card.innerHTML = `<img src="${gdu(item.url)}" loading="lazy">`;
-    card.addEventListener('click', () => showFullscreen(gdu(item.url))); grid.appendChild(card);
+// ═══════════════════════════════════════════════════════
+// 4. FLOATING UI PANELS (3D glass data panels)
+// ═══════════════════════════════════════════════════════
+function makeDataPanel(x, y, z, width, height, lines) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 512, 256);
+
+  // Glass background
+  ctx.fillStyle = 'rgba(0, 20, 40, 0.5)';
+  ctx.strokeStyle = 'rgba(68, 136, 255, 0.3)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(4, 4, 504, 248, 8); ctx.fill(); ctx.stroke();
+
+  // Scan line overlay
+  ctx.fillStyle = 'rgba(68, 136, 255, 0.04)';
+  for (let i = 0; i < 256; i += 4) { ctx.fillRect(4, i, 504, 1); }
+
+  // Header
+  ctx.fillStyle = 'rgba(68, 136, 255, 0.8)';
+  ctx.font = '14px monospace';
+  ctx.fillText('▸ GALAXY DATA v3.12', 16, 28);
+
+  // Data lines
+  ctx.font = '11px monospace';
+  ctx.fillStyle = 'rgba(136, 200, 255, 0.7)';
+  lines.forEach((line, i) => {
+    ctx.fillText(`  ${line[0]}: ${line[1]}`, 20, 52 + i * 18);
   });
+
+  // Radar
+  ctx.strokeStyle = 'rgba(68, 200, 255, 0.15)';
+  ctx.lineWidth = 1;
+  const rx = 440, ry = 80, rr = 40;
+  ctx.beginPath(); ctx.arc(rx, ry, rr, 0, 6.28); ctx.stroke();
+  ctx.beginPath(); ctx.arc(rx, ry, rr * 0.7, 0, 6.28); ctx.stroke();
+  ctx.beginPath(); ctx.arc(rx, ry, rr * 0.4, 0, 6.28); ctx.stroke();
+  // Radar sweep
+  ctx.beginPath(); ctx.moveTo(rx, ry);
+  const sa = Date.now() * 0.002 % 6.28;
+  ctx.lineTo(rx + Math.cos(sa) * rr, ry + Math.sin(sa) * rr);
+  ctx.strokeStyle = 'rgba(68, 200, 255, 0.4)'; ctx.stroke();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), mat);
+  mesh.position.set(x, y, z);
+
+  const panelObj = { mesh, canvas, ctx, lines, angle: Date.now() * 0.0003 };
+  scene.add(mesh);
+  return panelObj;
 }
 
-async function addImage(url) {
-  if (!url.trim()) return;
-  try {
-    const saved = await apiPost('/api/images', { url: url.trim() });
-    if (saved.error) { alert(saved.error); return; }
-    const t = await loadImageTexture(gdu(saved.url));
-    imageMap.set(saved.id, { url: saved.url, texture: t }); createFloatingImage(t, saved.id);
-    renderImageGrid(); renderMobileImageGrid();
-  } catch (err) { alert('Lỗi: ' + err.message); }
-}
+const panels = [];
+// Panel 1: Galaxy metrics (right side)
+panels.push(makeDataPanel(6, 3, 0, 3.5, 1.8, [
+  ['Rotation', '0.14 rad/Myr'],
+  ['Arms', '2 (Grand Design)'],
+  ['Stars', '156.4K tracked'],
+  ['Age', '13.2 Gyr'],
+  ['Clusters', '8 active'],
+  ['Dark Matter', '84.3%'],
+]));
 
-async function removeImage(dbId) {
-  const item = imageMap.get(dbId); if (!item) return;
-  item.texture.dispose();
-  const mi = floatingImages.findIndex(m => m.userData.dbId === dbId);
-  if (mi >= 0) { const m = floatingImages[mi]; m.geometry.dispose(); m.material.dispose(); scene.remove(m); floatingImages.splice(mi, 1); }
-  imageMap.delete(dbId);
-  await apiDelete('/api/images/' + dbId);
-  renderImageGrid(); renderMobileImageGrid();
-}
+// Panel 2: Spectral analysis (top right)
+panels.push(makeDataPanel(4, 4.5, 6, 2.8, 1.2, [
+  ['Spectrum', 'Sc-Bb (Blue)'],
+  ['Magnitude', '-21.8'],
+  ['Redshift', 'z=0.001'],
+  ['Diameter', '142 kly'],
+]));
 
-function showFullscreen(url) {
-  const modal = document.getElementById('imageModal');
-  modal.classList.remove('hidden');
-  modal.querySelector('img').src = url;
-  modal.onclick = e => { if (e.target === modal || e.target.classList.contains('modal-close')) modal.classList.add('hidden'); };
-}
-
-document.getElementById('imageUpload').addEventListener('change', async e => {
-  for (const file of e.target.files) {
-    try {
-      const saved = await apiUpload(file); if (saved.error) { alert(saved.error); continue; }
-      const t = await loadImageTexture(gdu(saved.url));
-      imageMap.set(saved.id, { url: saved.url, texture: t }); createFloatingImage(t, saved.id);
-    } catch (_) {}
-  }
-  renderImageGrid(); renderMobileImageGrid(); e.target.value = '';
-});
-
-document.getElementById('addImage').addEventListener('click', () => { const inp = document.getElementById('imageUrl'); addImage(inp.value); inp.value = ''; });
-document.getElementById('imageUrl').addEventListener('keydown', e => { if (e.key === 'Enter') { addImage(e.target.value); e.target.value = ''; } });
-
-document.getElementById('toggleImagesBtn').addEventListener('click', () => {
-  const show = floatingImages[0] && !floatingImages[0].visible;
-  floatingImages.forEach(m => m.visible = show);
-  document.getElementById('toggleImagesBtn').textContent = show ? '🖼 Ẩn' : '🖼 Hiện';
-});
+// Panel 3: Real-time telemetry (bottom left-ish)
+panels.push(makeDataPanel(-5, -2, 4, 3.0, 1.4, [
+  ['Signal Rate', '9.4 TB/s'],
+  ['Latency', '2.3 ms'],
+  ['Packets', '12.7M/s'],
+  ['Encryption', 'Quantum-256'],
+]));
 
 // ═══════════════════════════════════════════════════════
-// UI PANELS
+// 5. SATELLITE GALAXY + HOLOGRAPHIC BEAM
 // ═══════════════════════════════════════════════════════
+const satGroup = new THREE.Group(); scene.add(satGroup);
+const satPos = new THREE.Vector3(8, 2, -10);
 
-// Admin panel toggle
-const adminPanel = document.getElementById('adminPanel');
-document.getElementById('adminToggle').addEventListener('click', () => {
-  adminPanel.classList.toggle('open');
-  adminPanel.classList.remove('hidden');
-});
+// Satellite galaxy body
+const satCore = new THREE.Mesh(
+  new THREE.SphereGeometry(0.4, 16, 16),
+  new THREE.MeshBasicMaterial({ color: 0x88aaff })
+);
+satCore.position.copy(satPos);
+satGroup.add(satCore);
 
-// Gallery panel toggle (mobile)
-const galleryPanel = document.getElementById('galleryPanel');
-document.getElementById('galleryToggle').addEventListener('click', () => {
-  galleryPanel.classList.toggle('open');
-  galleryPanel.classList.remove('hidden');
-});
+const satGlow = new THREE.Mesh(
+  new THREE.SphereGeometry(0.8, 16, 16),
+  new THREE.MeshBasicMaterial({ color: 0x4466ff, transparent: true, opacity: 0.15 })
+);
+satGlow.position.copy(satPos);
+satGroup.add(satGlow);
 
-// Help overlay
-const helpOverlay = document.getElementById('helpOverlay');
-document.getElementById('helpBtn').addEventListener('click', () => helpOverlay.classList.remove('hidden'));
-document.getElementById('helpClose').addEventListener('click', () => helpOverlay.classList.add('hidden'));
-document.getElementById('helpBg').addEventListener('click', () => helpOverlay.classList.add('hidden'));
-
-// ═══════════════════════════════════════════════════════
-// CONTROLS
-// ═══════════════════════════════════════════════════════
-const armsSlider = document.getElementById('arms'), spiralSlider = document.getElementById('spiral');
-const countSlider = document.getElementById('count'), speedSlider = document.getElementById('speed');
-
-function rebuildGalaxy() {
-  const arms = parseInt(armsSlider.value), spiral = parseFloat(spiralSlider.value), count = parseInt(countSlider.value);
-  document.getElementById('armsVal').textContent = arms;
-  document.getElementById('spiralVal').textContent = spiral;
-  document.getElementById('countVal').textContent = (count / 1000).toFixed(0) + 'K';
-  document.getElementById('speedVal').textContent = parseFloat(speedSlider.value);
-  createGalaxyMesh(generateCleanSpiral(count, arms, spiral));
-  createDustMeshFn(generateDustBands(Math.floor(count * 0.5), arms, spiral));
-  createNebulaMesh(generateNebulaClouds(Math.floor(count * 0.15), arms, spiral));
+// Satellite particles
+const satCount = 800;
+const satP = new Float32Array(satCount * 3), satC = new Float32Array(satCount * 3);
+for (let i = 0; i < satCount; i++) {
+  const r = Math.random() * 1.5;
+  const a = Math.random() * 6.28;
+  satP[i * 3] = satPos.x + Math.cos(a) * r;
+  satP[i * 3 + 1] = satPos.y + (Math.random() - 0.5) * 0.2;
+  satP[i * 3 + 2] = satPos.z + Math.sin(a) * r;
+  const co = new THREE.Color().setHSL(0.55 + Math.random() * 0.1, 0.5, 0.4 + Math.random() * 0.4);
+  satC[i * 3] = co.r; satC[i * 3 + 1] = co.g; satC[i * 3 + 2] = co.b;
 }
+const satGeo = new THREE.BufferGeometry();
+satGeo.setAttribute('position', new THREE.BufferAttribute(satP, 3));
+satGeo.setAttribute('color', new THREE.BufferAttribute(satC, 3));
+const satMesh = new THREE.Points(satGeo, new THREE.PointsMaterial({
+  size: 0.04, vertexColors: true, blending: THREE.AdditiveBlending,
+  depthWrite: false, transparent: true
+}));
+satGroup.add(satMesh);
 
-armsSlider.addEventListener('input', rebuildGalaxy); spiralSlider.addEventListener('input', rebuildGalaxy);
-countSlider.addEventListener('input', rebuildGalaxy);
-speedSlider.addEventListener('input', () => { document.getElementById('speedVal').textContent = parseFloat(speedSlider.value); });
-
-document.getElementById('resetBtn').addEventListener('click', () => { camera.position.set(0, 14, 22); controls.target.set(0, 0, 0); controls.update(); });
-document.getElementById('autoRotateBtn').addEventListener('click', () => {
-  controls.autoRotate = !controls.autoRotate;
-  document.getElementById('autoRotateBtn').textContent = controls.autoRotate ? '⏸ Dừng' : '▶ Xoay';
+// Holographic connecting beam
+const beamPoints = [];
+for (let i = 0; i <= 40; i++) {
+  const t = i / 40;
+  const bx = satPos.x * t;
+  const by = satPos.y * t + (1 - Math.cos(t * 6.28)) * 1.5;
+  const bz = satPos.z * t;
+  beamPoints.push(new THREE.Vector3(bx, by, bz));
+}
+const beamGeo = new THREE.BufferGeometry().setFromPoints(beamPoints);
+const beamMat = new THREE.LineBasicMaterial({
+  color: 0x4488ff, transparent: true, opacity: 0.15
 });
+const beamLine = new THREE.Line(beamGeo, beamMat);
+scene.add(beamLine);
 
-// Raycaster
-const raycaster = new THREE.Raycaster(), mousePos = new THREE.Vector2();
+// Beam glow particles
+const bcount = 200;
+const bp = new Float32Array(bcount * 3), bc = new Float32Array(bcount * 3);
+for (let i = 0; i < bcount; i++) {
+  const t = i / bcount;
+  bp[i * 3] = satPos.x * t + (Math.random() - 0.5) * 0.3;
+  bp[i * 3 + 1] = satPos.y * t + (1 - Math.cos(t * 6.28)) * 1.5 + (Math.random() - 0.5) * 0.3;
+  bp[i * 3 + 2] = satPos.z * t + (Math.random() - 0.5) * 0.3;
+  const co = new THREE.Color().setHSL(0.6 + Math.random() * 0.1, 0.8, 0.4 + Math.random() * 0.4);
+  bc[i * 3] = co.r; bc[i * 3 + 1] = co.g; bc[i * 3 + 2] = co.b;
+}
+const bGeo = new THREE.BufferGeometry();
+bGeo.setAttribute('position', new THREE.BufferAttribute(bp, 3));
+bGeo.setAttribute('color', new THREE.BufferAttribute(bc, 3));
+const beamGlow = new THREE.Points(bGeo, new THREE.PointsMaterial({
+  size: 0.04, vertexColors: true, blending: THREE.AdditiveBlending,
+  depthWrite: false, transparent: true, opacity: 0.4
+}));
+scene.add(beamGlow);
+
+// ═══════════════════════════════════════════════════════
+// 6. BACKGROUND UNIVERSE
+// ═══════════════════════════════════════════════════════
+const bgCount = 5000;
+const bgP = new Float32Array(bgCount * 3), bgC = new Float32Array(bgCount * 3);
+for (let i = 0; i < bgCount; i++) {
+  const r = 40 + Math.random() * 80;
+  const th = Math.random() * 6.28, ph = Math.acos(2 * Math.random() - 1);
+  bgP[i * 3] = Math.sin(ph) * Math.cos(th) * r;
+  bgP[i * 3 + 1] = Math.sin(ph) * Math.sin(th) * r;
+  bgP[i * 3 + 2] = Math.cos(ph) * r;
+  const co = new THREE.Color().setHSL(0.55 + Math.random() * 0.2, 0.2, 0.3 + Math.random() * 0.5);
+  bgC[i * 3] = co.r; bgC[i * 3 + 1] = co.g; bgC[i * 3 + 2] = co.b;
+}
+const bgGeo = new THREE.BufferGeometry();
+bgGeo.setAttribute('position', new THREE.BufferAttribute(bgP, 3));
+bgGeo.setAttribute('color', new THREE.BufferAttribute(bgC, 3));
+scene.add(new THREE.Points(bgGeo, new THREE.PointsMaterial({
+  size: 0.08, vertexColors: true, blending: THREE.AdditiveBlending,
+  depthWrite: false, transparent: true
+})));
+
+// ═══════════════════════════════════════════════════════
+// 7. HOVER / CLICK INTERACTION
+// ═══════════════════════════════════════════════════════
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let tooltip = document.createElement('div');
+tooltip.style.cssText = 'position:fixed;z-index:100;background:rgba(0,10,30,0.9);border:1px solid rgba(68,136,255,0.3);border-radius:6px;padding:8px 12px;color:#aaccff;font:11px monospace;pointer-events:none;opacity:0;transition:opacity 0.2s;backdrop-filter:blur(8px);';
+document.body.appendChild(tooltip);
+
+renderer.domElement.addEventListener('mousemove', e => {
+  mouse.x = (e.clientX / innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+});
 renderer.domElement.addEventListener('click', e => {
-  mousePos.x = (e.clientX / innerWidth) * 2 - 1; mousePos.y = -(e.clientY / innerHeight) * 2 + 1;
-  raycaster.setFromCamera(mousePos, camera);
-  const hits = raycaster.intersectObjects(floatingImages);
-  if (hits.length > 0) { const dbId = hits[0].object.userData.dbId; const item = imageMap.get(dbId); if (item) showFullscreen(gdu(item.url)); }
+  mouse.x = (e.clientX / innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const spheres = dataClusters.map(d => d.sphere);
+  const hits = raycaster.intersectObjects(spheres);
+  if (hits.length > 0) {
+    const info = hits[0].object.userData.info;
+    tooltip.innerHTML = `<b>${info.name}</b><br>Temp: ${info.temp}K<br>Mass: ${info.mass}<br>Age: ${info.age}`;
+    tooltip.style.opacity = '1';
+    tooltip.style.left = (e.clientX + 10) + 'px';
+    tooltip.style.top = (e.clientY + 10) + 'px';
+    setTimeout(() => { tooltip.style.opacity = '0'; }, 3000);
+  }
 });
 
-addEventListener('resize', () => {
+// ── Resize ────────────────────────────────────────
+window.addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
+  labelRenderer.setSize(innerWidth, innerHeight);
 });
 
 // ═══════════════════════════════════════════════════════
-// ── Music Player ─────────────────────────────────────
-const bgAudio = document.getElementById('bgAudio');
-let musicOn = false;
-const musicBtn = document.getElementById('musicToggle');
+// 8. INIT
+// ═══════════════════════════════════════════════════════
+renderArms(makeArms(12000));
+createDataClusters();
 
-bgAudio.volume = 0.3;
+// Hide loading
+document.addEventListener('click', () => {
+  const l = document.getElementById('loading');
+  if (l) { l.style.transition = 'opacity 0.5s'; l.style.opacity = '0'; setTimeout(() => l.remove(), 500); }
+}, { once: true });
 
-musicBtn.addEventListener('click', () => {
-  if (musicOn) { bgAudio.pause(); musicOn = false; }
-  else { bgAudio.play().catch(() => {}); musicOn = true; }
-  musicBtn.textContent = musicOn ? '🔊' : '🔇';
-  musicBtn.classList.toggle('muted', !musicOn);
-});
-
-function startMusic() {
-  if (!musicOn) { bgAudio.play().catch(() => {}); musicOn = true; musicBtn.textContent = '🔊'; musicBtn.classList.remove('muted'); }
-  ['click','touchstart','keydown'].forEach(e => document.removeEventListener(e, startMusic));
-}
-['click','touchstart','keydown'].forEach(e => document.addEventListener(e, startMusic, { once: true }));
+setTimeout(() => {
+  const l = document.getElementById('loading');
+  if (l) { l.style.transition = 'opacity 0.5s'; l.style.opacity = '0'; setTimeout(() => l.remove(), 500); }
+}, 4000);
 
 // ═══════════════════════════════════════════════════════
-// LOADING
-// ═══════════════════════════════════════════════════════
-const loading = document.getElementById('loading');
-function hideLoading() {
-  loading.classList.add('hidden');
-  ['click','touchstart','keydown'].forEach(e => removeEventListener(e, hideLoading));
-}
-['click','touchstart','keydown'].forEach(e => addEventListener(e, hideLoading, { once: true }));
-setTimeout(() => hideLoading(), 8000);
-
-// ═══════════════════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════════════════
-createUniverse();
-createHalo();
-const initData = generateCleanSpiral(10000, 4, 2.5);
-createGalaxyMesh(initData);
-createDustMeshFn(generateDustBands(5000, 4, 2.5));
-createNebulaMesh(generateNebulaClouds(1500, 4, 2.5));
-
-(async () => {
-  try {
-    const images = await apiGet('/api/images');
-    if (images.length > 0) {
-      for (const img of images) {
-        try { const t = await loadImageTexture(gdu(img.url)); imageMap.set(img.id, { url: img.url, texture: t }); createFloatingImage(t, img.id); } catch (_) {}
-      }
-    } else {
-      for (const url of defaultImages) {
-        try {
-          const saved = authToken ? await apiPost('/api/images', { url }) : { id: 'local-' + Math.random().toString(36).slice(2), url };
-          const t = await loadImageTexture(url); imageMap.set(saved.id, { url: saved.url || url, texture: t }); createFloatingImage(t, saved.id);
-        } catch (_) {}
-      }
-    }
-  } catch (_) {
-    for (const url of defaultImages) {
-      try { const t = await loadImageTexture(url); const fid = 'local-' + Math.random().toString(36).slice(2); imageMap.set(fid, { url, texture: t }); createFloatingImage(t, fid); } catch (_) {}
-    }
-  }
-  renderImageGrid(); renderMobileImageGrid();
-  document.getElementById('colorLegend').style.opacity = '1';
-})();
-
-// ═══════════════════════════════════════════════════════
-// ANIMATION
+// 9. ANIMATION LOOP
 // ═══════════════════════════════════════════════════════
 const clock = new THREE.Clock();
+
 function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.1);
   const time = performance.now() * 0.001;
+
   controls.update();
-  const speed = parseFloat(speedSlider.value);
-  floatingImages.forEach(m => {
-    m.userData.orbitAngle += m.userData.orbitSpeed * speed * dt;
-    m.position.x = Math.cos(m.userData.orbitAngle) * m.userData.orbitRadius;
-    m.position.z = Math.sin(m.userData.orbitAngle) * m.userData.orbitRadius;
-    m.position.y = m.userData.orbitHeight;
-    m.lookAt(0, m.userData.orbitHeight * 0.5, 0);
+
+  // Core glow pulse
+  glowSphere.material.uniforms.uTime.value = time;
+
+  // Rotate data rings
+  coreGroup.children.forEach(child => {
+    if (child.isMesh && child.geometry.type === 'RingGeometry') {
+      child.rotation.z += child.userData.speed * dt;
+      child.rotation.x = Math.PI * child.userData.tilt + Math.sin(time * 0.3 + child.userData.speed) * 0.1;
+    }
   });
-  coreGlowMat.uniforms.uTime.value = time;
-  innerDiskMat.uniforms.uTime.value = time;
-  coreMesh.rotation.y += 0.06 * dt;
-  if (galaxyStars) galaxyStars.rotation.y += speed * 0.06 * dt;
-  if (nebulaMesh) nebulaMesh.rotation.y += speed * 0.05 * dt;
+
+  // Rotate galaxy
+  const speed = 0.3;
+  if (armParticles) armParticles.rotation.y += speed * 0.06 * dt;
   if (dustMesh) dustMesh.rotation.y += speed * 0.06 * dt;
-  if (nebula) nebula.rotation.y += speed * 0.05 * dt;
+
+  // Data cluster animation
+  dataClusters.forEach((dc, i) => {
+    const pulse = 0.7 + 0.3 * Math.sin(time * 1.5 + dc.sphere.userData.pulsePhase);
+    dc.sphere.scale.setScalar(pulse);
+    dc.glow.scale.setScalar(pulse * 1.3);
+    dc.sphere.position.y = dc.sphere.userData.baseY + Math.sin(time * 0.8 + i) * 0.08;
+    dc.glow.position.y = dc.sphere.position.y;
+    dc.label.position.y = dc.sphere.position.y - 0.35;
+
+    // Orbit slowly
+    dc.sphere.position.x = Math.cos(dc.angleA + time * dc.speed) * dc.angleR;
+    dc.sphere.position.z = Math.sin(dc.angleA + time * dc.speed) * dc.angleR;
+    dc.glow.position.x = dc.sphere.position.x;
+    dc.glow.position.z = dc.sphere.position.z;
+    dc.label.position.x = dc.sphere.position.x;
+    dc.label.position.z = dc.sphere.position.z;
+  });
+
+  // Satellite rotation
+  satGroup.rotation.y += 0.02 * dt;
+
+  // Update panel canvases (radar sweep)
+  panels.forEach(p => {
+    const ctx = p.canvas.getContext('2d');
+    // Redraw radar line
+    ctx.fillStyle = 'rgba(0, 5, 15, 0.1)';
+    ctx.fillRect(0, 0, 512, 256);
+    // Quick partial redraw would be better, but for now just update texture
+    p.mesh.material.map.needsUpdate = true;
+  });
+
+  // Tooltip follow (not clicked, just hover)
+  if (tooltip.style.opacity !== '1') {
+    raycaster.setFromCamera(mouse, camera);
+    const spheres = dataClusters.map(d => d.sphere);
+    const hits = raycaster.intersectObjects(spheres);
+    if (hits.length > 0) {
+      const info = hits[0].object.userData.info;
+      tooltip.innerHTML = `<span style="color:#ff88aa">◆</span> ${info.name}<br>${info.temp}K · ${info.mass}`;
+      tooltip.style.opacity = '0.9';
+      renderer.domElement.style.cursor = 'pointer';
+    } else {
+      tooltip.style.opacity = '0';
+      renderer.domElement.style.cursor = 'default';
+    }
+  }
+
   composer.render();
+  labelRenderer.render(scene, camera);
 }
 animate();
