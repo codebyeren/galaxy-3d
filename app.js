@@ -492,7 +492,7 @@ if (bgAudio && musicBtn) {
 
 // ═══════════════════════════════════════════════════════
 // 8. INIT
-renderArms(makeArms(25000));
+renderArms(makeArms(45000));  // denser
 createDataClusters();
 
 // Hide loading
