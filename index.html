@@ -86,6 +86,20 @@
   <!-- Badge chế độ -->
   <div id="modeBadge"></div>
 
+  <!-- Auth overlay (desktop only) -->
+  <div id="authOverlay" class="desktop-only">
+    <div class="auth-card">
+      <div class="auth-title">🔐 Admin Login</div>
+      <div class="auth-subtitle">Nhập mật khẩu để mở khóa quyền quản lý ảnh</div>
+      <input type="password" id="authPassword" placeholder="Mật khẩu admin..." autocomplete="off">
+      <div class="auth-buttons">
+        <button id="authSubmit">🔓 Mở khóa Admin</button>
+        <button id="authSkip" class="auth-skip">👁 Xem dưới dạng User</button>
+      </div>
+      <div id="authError"></div>
+    </div>
+  </div>
+
   <script type="importmap">
   {
     "imports": {
